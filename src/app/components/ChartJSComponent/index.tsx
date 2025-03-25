@@ -442,8 +442,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
               style={{ 
                 height: '400px', 
                 width: '100%',
-                backgroundImage: 'radial-gradient(circle at 1px 1px, #d4c2e9 1px, transparent 0)',
-                backgroundSize: '20px 20px',
+                backgroundImage: 'radial-gradient(circle at 1px 1px, #c9c6cd 1px, transparent 0)',
+                backgroundSize: '14px 14px',
                 boxShadow: 'inset 0 2px 10px rgba(99, 102, 241, 0.1)'
               }}
             >
