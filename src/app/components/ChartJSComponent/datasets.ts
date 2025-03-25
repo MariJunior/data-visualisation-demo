@@ -1,15 +1,15 @@
 import { BubbleDataPoint, ChartData, ScatterDataPoint } from "chart.js";
 
 type DatasetMocksTypes = {
-  sales: ChartData<'line' | 'bar'>;
-  users: ChartData<'line' | 'bar'>;
-  performance: ChartData<'radar' | 'polarArea'>;
-  revenue: ChartData<'line' | 'bar'>;
-  demographics: ChartData<'pie' | 'doughnut'>;
-  comparison: ChartData<'bar'>;
-  bubbleData: ChartData<'bubble', BubbleDataPoint[]>;
-  scatterData: ChartData<'scatter', ScatterDataPoint[]>;
-  timeData: ChartData<'line'>;
+  sales: ChartData<"line" | "bar">;
+  users: ChartData<"line" | "bar">;
+  performance: ChartData<"radar" | "polarArea">;
+  revenue: ChartData<"line" | "bar">;
+  demographics: ChartData<"pie" | "doughnut">;
+  comparison: ChartData<"bar">;
+  bubbleData: ChartData<"bubble", BubbleDataPoint[]>;
+  scatterData: ChartData<"scatter", ScatterDataPoint[]>;
+  timeData: ChartData<"line">;
 };
 
 // Функция для генерации случайных цветов
@@ -56,16 +56,16 @@ export const mockDatasets: DatasetMocksTypes = {
         data: generateRandomData(8, 1000, 10000),
         borderColor: "rgb(53, 162, 235)",
         backgroundColor: "rgba(53, 162, 235, 0.5)",
-        type: 'line',
-        yAxisID: 'y',
+        type: "line",
+        yAxisID: "y",
       },
       {
         label: "New Registrations",
         data: generateRandomData(8, 400, 2000),
         borderColor: "rgb(255, 159, 64)",
         backgroundColor: "rgba(255, 159, 64, 0.7)",
-        type: 'bar',
-        yAxisID: 'y1',
+        type: "bar",
+        yAxisID: "y1",
       }
     ],
   },
@@ -103,19 +103,19 @@ export const mockDatasets: DatasetMocksTypes = {
         label: "Hardware",
         data: generateRandomData(12, 10000, 25000),
         backgroundColor: "rgba(255, 99, 132, 0.7)",
-        stack: 'stack1',
+        stack: "stack1",
       },
       {
         label: "Software",
         data: generateRandomData(12, 18000, 35000),
         backgroundColor: "rgba(75, 192, 192, 0.7)",
-        stack: 'stack1',
+        stack: "stack1",
       },
       {
         label: "Services",
         data: generateRandomData(12, 8000, 14000),
         backgroundColor: "rgba(53, 162, 235, 0.7)",
-        stack: 'stack1',
+        stack: "stack1",
       }
     ],
   },
@@ -235,7 +235,7 @@ export const mockDatasets: DatasetMocksTypes = {
         backgroundColor: "rgba(255, 99, 132, 0.5)",
         tension: 0.4,
         fill: true,
-        yAxisID: 'y1',
+        yAxisID: "y1",
       }
     ],
   }

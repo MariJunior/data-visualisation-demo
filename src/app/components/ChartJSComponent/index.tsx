@@ -1,5 +1,4 @@
-import { mockDatasets } from '@/app/data/datasets';
-import { Card, Col, Divider, Input, Radio, Row, Select, Slider, Switch, Tabs, Typography } from 'antd';
+import { Card, Col, Divider, Input, Radio, Row, Select, Slider, Switch, Tabs, Typography } from "antd";
 import {
   ArcElement,
   BarController,
@@ -25,7 +24,9 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { mockDatasets } from "./datasets";
+import { ChartJSComponentProps, ChartTypeEnum, ChartTypeItem, DatasetEnum, LegendPositionEnum, TabItem } from "./types";
 
 const { Title: AntTitle, Text } = Typography;
 const { Option } = Select;
@@ -58,52 +59,15 @@ ChartJS.register(
   Legend
 );
 
-// Enum для типов графиков
-enum ChartTypeEnum {
-  LINE = 'line',
-  BAR = 'bar',
-  RADAR = 'radar',
-  PIE = 'pie',
-  DOUGHNUT = 'doughnut',
-  POLAR_AREA = 'polarArea',
-  BUBBLE = 'bubble',
-  SCATTER = 'scatter'
-}
-
-// Enum для наборов данных
-enum DatasetEnum {
-  SALES = 'sales',
-  USERS = 'users',
-  PERFORMANCE = 'performance',
-  REVENUE = 'revenue',
-  DEMOGRAPHICS = 'demographics',
-  COMPARISON = 'comparison',
-  TIME_DATA = 'timeData'
-}
-
-// Enum для позиций легенды
-enum LegendPositionEnum {
-  TOP = 'top',
-  LEFT = 'left',
-  BOTTOM = 'bottom',
-  RIGHT = 'right'
-}
-
-// Тип для элементов массива типов графиков
-interface ChartTypeItem {
-  id: ChartTypeEnum;
-  label: string;
-}
-
 const chartTypes: ChartTypeItem[] = [
-  { id: ChartTypeEnum.LINE, label: 'Line Chart' },
-  { id: ChartTypeEnum.BAR, label: 'Bar Chart' },
-  { id: ChartTypeEnum.RADAR, label: 'Radar Chart' },
-  { id: ChartTypeEnum.PIE, label: 'Pie Chart' },
-  { id: ChartTypeEnum.DOUGHNUT, label: 'Doughnut Chart' },
-  { id: ChartTypeEnum.POLAR_AREA, label: 'Polar Area Chart' },
-  { id: ChartTypeEnum.BUBBLE, label: 'Bubble Chart' },
-  { id: ChartTypeEnum.SCATTER, label: 'Scatter Chart' },
+  { id: ChartTypeEnum.LINE, label: "Line Chart" },
+  { id: ChartTypeEnum.BAR, label: "Bar Chart" },
+  { id: ChartTypeEnum.RADAR, label: "Radar Chart" },
+  { id: ChartTypeEnum.PIE, label: "Pie Chart" },
+  { id: ChartTypeEnum.DOUGHNUT, label: "Doughnut Chart" },
+  { id: ChartTypeEnum.POLAR_AREA, label: "Polar Area Chart" },
+  { id: ChartTypeEnum.BUBBLE, label: "Bubble Chart" },
+  { id: ChartTypeEnum.SCATTER, label: "Scatter Chart" },
 ];
 
 const defaultOptions: ChartOptions<ChartType> = {
@@ -135,29 +99,18 @@ const defaultOptions: ChartOptions<ChartType> = {
     },
     title: {
       display: true,
-      text: 'Chart.js Demo',
+      text: "Chart.js Demo",
       font: {
         size: 16,
-        weight: 'bold',
+        weight: "bold",
       },
     },
   },
 };
 
-interface TabItem {
-  key: string;
-  label: string;
-  children: React.ReactNode;
-}
-
-interface ChartJSComponentProps {
-  fontSize?: number;
-  fontFamily?: string;
-};
-
 export const ChartJSComponent: FC<ChartJSComponentProps> = ({ 
   fontSize = 14,
-  fontFamily = 'Arial',
+  fontFamily = "Arial",
 }) => {
   const [selectedDataset, setSelectedDataset] = useState<DatasetEnum>(DatasetEnum.SALES);
   const [selectedChartType, setSelectedChartType] = useState<ChartTypeEnum>(ChartTypeEnum.LINE);
@@ -165,7 +118,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   
   const [showLegend, setShowLegend] = useState(true);
   const [legendPosition, setLegendPosition] = useState<LegendPositionEnum>(LegendPositionEnum.TOP);
-  const [chartTitle, setChartTitle] = useState('Chart.js Demo');
+  const [chartTitle, setChartTitle] = useState("Chart.js Demo");
   const [showTitle, setShowTitle] = useState(true);
   const [aspectRatio, setAspectRatio] = useState(2);
   const [animationDuration, setAnimationDuration] = useState(1000);
@@ -174,6 +127,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS<ChartType, unknown[], unknown> | null>(null);
+  const chartInitializedRef = useRef(false);
 
   const updateChartOptions = useCallback(
     () => {
@@ -238,7 +192,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             font: {
               size: fontSize + 2,
               family: fontFamily,
-              weight: 'bold',
+              weight: "bold",
             },
             text: chartTitle,
           },
@@ -269,113 +223,172 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     [showLegend, legendPosition, chartTitle, showTitle, aspectRatio, animationDuration, borderWidth, tension, updateChartOptions]
   );
 
+  const destroyChart = useCallback(() => {
+    if (chartInstanceRef.current) {
+      try {
+        chartInstanceRef.current.destroy();
+      } catch (error) {
+        console.error("Error destroying chart:", error);
+      }
+      chartInstanceRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      destroyChart();
+    };
+  }, [destroyChart]);
+
   const renderChart = useCallback(() => {
     if (!chartRef.current) return;
 
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
+    destroyChart();
 
-    const ctx = chartRef.current.getContext('2d');
+    const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
 
 
     let currentData: ChartData<ChartType>;
     let chartType = selectedChartType;
     
+    try {
     // Определяем, какой датасет и тип графика использовать
-    if (selectedChartType === ChartTypeEnum.BUBBLE) {
-      currentData = mockDatasets.bubbleData as ChartData<ChartType>;
-    } else if (selectedChartType === ChartTypeEnum.SCATTER) {
-      currentData = mockDatasets.scatterData as ChartData<ChartType>;
-    } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
-      // Для демографических данных лучше использовать круговые диаграммы
-      currentData = mockDatasets.demographics as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
-        chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
+      if (selectedChartType === ChartTypeEnum.BUBBLE) {
+        currentData = mockDatasets.bubbleData as ChartData<ChartType>;
+      } else if (selectedChartType === ChartTypeEnum.SCATTER) {
+        currentData = mockDatasets.scatterData as ChartData<ChartType>;
+      } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
+        // Для демографических данных лучше использовать круговые диаграммы
+        currentData = mockDatasets.demographics as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
+          chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
+        }
+      } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
+        currentData = mockDatasets.performance as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
+          chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
+        }
+      } else if (selectedDataset === DatasetEnum.TIME_DATA) {
+        currentData = mockDatasets.timeData as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.LINE) {
+          chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
+        }
+      } else {
+        // Для остальных датасетов используем выбранный тип графика
+        currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
       }
-    } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
-      currentData = mockDatasets.performance as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
-        chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
-      }
-    } else if (selectedDataset === DatasetEnum.TIME_DATA) {
-      currentData = mockDatasets.timeData as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.LINE) {
-        chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
-      }
-    } else {
-      // Для остальных датасетов используем выбранный тип графика
-      currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
-    }
 
-    // Создаем дополнительные опции в зависимости от датасета
-    let options = { ...chartOptions };
-    
-    // Для датасета users и timeData добавляем вторую ось Y
-    if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
-        (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) {
-      options = {
-        ...options,
-        scales: {
-          ...options.scales,
-          y: {
-            type: 'linear',
-            display: true,
-            position: 'left',
-            title: {
+      // Создаем дополнительные опции в зависимости от датасета
+      let options = { ...chartOptions };
+      
+      // Для датасета users и timeData добавляем вторую ось Y
+      if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
+          (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) {
+        options = {
+          ...options,
+          scales: {
+            ...options.scales,
+            y: {
+              type: "linear",
               display: true,
-              text: selectedDataset === DatasetEnum.USERS ? 'Active Users' : 'Website Traffic',
-              font: {
-                family: fontFamily,
-                size: fontSize,
+              position: "left",
+              title: {
+                display: true,
+                text: selectedDataset === DatasetEnum.USERS ? "Active Users" : "Website Traffic",
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                }
+              },
+              ticks: {
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                }
               }
             },
-            ticks: {
-              font: {
-                family: fontFamily,
-                size: fontSize,
-              }
-            }
-          },
-          y1: {
-            type: 'linear',
-            display: true,
-            position: 'right',
-            title: {
+            y1: {
+              type: "linear",
               display: true,
-              text: selectedDataset === DatasetEnum.USERS ? 'New Registrations' : 'Server Load (%)',
-              font: {
-                family: fontFamily,
-                size: fontSize,
-              }
-            },
-            grid: {
-              drawOnChartArea: false,
-            },
-            ticks: {
-              font: {
-                family: fontFamily,
-                size: fontSize,
+              position: "right",
+              title: {
+                display: true,
+                text: selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                }
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+              ticks: {
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                }
               }
             }
           }
-        }
-      };
-    }
+        };
+      }
 
-    // Создаем график
-    chartInstanceRef.current = new ChartJS(ctx, {
-      data: currentData,
-      type: chartType as keyof ChartTypeRegistry,
-      options: options
-    });
-  }, [chartOptions, selectedChartType, selectedDataset]);
+      if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
+        if (!currentData.datasets[0].backgroundColor || !Array.isArray(currentData.datasets[0].backgroundColor)) {
+          const colors = Array(currentData.datasets[0].data.length).fill(0).map(() => 
+            `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`
+          );
+          currentData.datasets[0].backgroundColor = colors;
+        }
+        
+        options = {
+          ...options,
+          scales: {}
+        };
+      }
+
+      // Создаем график
+      chartInstanceRef.current = new ChartJS(ctx, {
+        data: currentData,
+        type: chartType as keyof ChartTypeRegistry,
+        options: options
+      });
+
+      chartInitializedRef.current = true;
+    } catch (error) {
+      console.error("Ошибка при создании графика: ", error);
+
+      try {
+        chartType = ChartTypeEnum.BAR;
+        currentData = {
+          labels: ['Fallback Data'],
+          datasets: [{
+            label: 'Error Fallback',
+            data: [100],
+            backgroundColor: ['rgba(75, 192, 192, 0.6)']
+          }]
+        } as ChartData<ChartType>;
+        
+        chartInstanceRef.current = new ChartJS(ctx, {
+          type: chartType as keyof ChartTypeRegistry,
+          data: currentData,
+          options: defaultOptions
+        });
+      } catch (fallbackError) {
+        console.error("Even fallback chart failed:", fallbackError);
+      }
+    }
+  }, [chartOptions, selectedChartType, selectedDataset, fontFamily, fontSize, destroyChart]);
 
   useEffect(() => {
-    if (chartRef.current) {
-      renderChart();
-    }
+    const timer = setTimeout(() => {
+      if (chartRef.current) {
+        renderChart();
+      }
+    }, 0);
+    
+    return () => clearTimeout(timer);
   }, [selectedDataset, selectedChartType, chartOptions, renderChart]);
 
   // Добавим эффект для обновления графика при изменении шрифта
@@ -385,22 +398,16 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     ChartJS.defaults.font.size = fontSize;
     
     // Полностью пересоздадим график
-    if (chartRef.current) {
-      // Уничтожим текущий график, если он существует
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-        chartInstanceRef.current = null;
-      }
-      
-      // Вызовем renderChart для создания нового графика с обновленными настройками
+    if (chartRef.current && chartInitializedRef.current) {
+      destroyChart();
       renderChart();
     }
   }, [fontFamily, fontSize, renderChart]);
 
-  const tabItems: TabItem[] = [
+  const tabItems: TabItem[] = useMemo(() => [
     {
-      key: 'chartType',
-      label: 'Chart Type',
+      key: "chartType",
+      label: "Chart Type",
       children: (
         <div className="p-4">
           <Radio.Group 
@@ -418,8 +425,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       ),
     },
     {
-      key: 'dataset',
-      label: 'Dataset',
+      key: "dataset",
+      label: "Dataset",
       children: (
         <div className="p-4">
           <Radio.Group 
@@ -439,8 +446,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       ),
     },
     {
-      key: 'appearance',
-      label: 'Appearance',
+      key: "appearance",
+      label: "Appearance",
       children: (
         <div className="p-4 space-y-4">
           <div>
@@ -494,8 +501,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       ),
     },
     {
-      key: 'advanced',
-      label: 'Advanced',
+      key: "advanced",
+      label: "Advanced",
       children: (
         <div className="p-4 space-y-6">
           <div>
@@ -550,7 +557,19 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         </div>
       ),
     },
-  ];
+  ], 
+  [
+    animationDuration, 
+    aspectRatio, 
+    borderWidth, 
+    chartTitle, 
+    legendPosition, 
+    selectedChartType, 
+    selectedDataset, 
+    showLegend, 
+    showTitle, 
+    tension
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6">

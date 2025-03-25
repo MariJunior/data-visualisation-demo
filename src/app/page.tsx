@@ -12,32 +12,32 @@ const ChartJSComponent = dynamic(() => import("./components/ChartJSComponent"), 
 // const PlotlyComponent = dynamic(() => import("./components/PlotlyComponent"), { ssr: false });
 
 // Обновленный список доступных шрифтов, соответствующий загруженным в layout.tsx
-// const fontOptions = [
-//   { value: 'var(--font-geist-sans), sans-serif', label: 'Geist Sans' },
-//   { value: 'var(--font-geist-mono), monospace', label: 'Geist Mono' },
-//   { value: 'var(--font-inter), sans-serif', label: 'Inter' },
-//   { value: 'var(--font-roboto), sans-serif', label: 'Roboto' },
-//   { value: 'var(--font-roboto-mono), monospace', label: 'Roboto Mono' },
-//   { value: 'var(--font-lato), sans-serif', label: 'Lato' },
-//   { value: 'var(--font-montserrat), sans-serif', label: 'Montserrat' },
-//   { value: 'var(--font-fira-code), monospace', label: 'Fira Code' },
-//   { value: 'var(--font-jet-brains-mono), monospace', label: 'JetBrains Mono' },
-//   // Можно добавить и стандартные шрифты
-//   { value: 'Arial, sans-serif', label: 'Arial' },
-//   { value: 'Helvetica, sans-serif', label: 'Helvetica' },
-//   { value: 'Georgia, serif', label: 'Georgia' },
-//   { value: 'Times New Roman, serif', label: 'Times New Roman' },
-// ];
-// В page.tsx
 const fontOptions = [
-  { value: 'Arial, sans-serif', label: 'Arial' },
-  { value: 'Helvetica, sans-serif', label: 'Helvetica' },
-  { value: 'Roboto, sans-serif', label: 'Roboto' },
-  { value: 'Lato, sans-serif', label: 'Lato' },
-  { value: 'Georgia, serif', label: 'Georgia' },
-  { value: 'Times New Roman, serif', label: 'Times New Roman' },
-  { value: 'Courier New, monospace', label: 'Courier New' },
+  { value: "var(--font-geist-sans), sans-serif", label: "Geist Sans" },
+  { value: "var(--font-geist-mono), monospace", label: "Geist Mono" },
+  { value: "var(--font-inter), sans-serif", label: "Inter" },
+  { value: "var(--font-roboto), sans-serif", label: "Roboto" },
+  { value: "var(--font-roboto-mono), monospace", label: "Roboto Mono" },
+  { value: "var(--font-lato), sans-serif", label: "Lato" },
+  { value: "var(--font-montserrat), sans-serif", label: "Montserrat" },
+  { value: "var(--font-fira-code), monospace", label: "Fira Code" },
+  { value: "var(--font-jet-brains-mono), monospace", label: "JetBrains Mono" },
+  // Можно добавить и стандартные шрифты
+  { value: "Arial, sans-serif", label: "Arial" },
+  { value: "Helvetica, sans-serif", label: "Helvetica" },
+  { value: "Georgia, serif", label: "Georgia" },
+  { value: "Times New Roman, serif", label: "Times New Roman" },
 ];
+// В page.tsx
+// const fontOptions = [
+//   { value: "Arial, sans-serif", label: "Arial" },
+//   { value: "Helvetica, sans-serif", label: "Helvetica" },
+//   { value: "Roboto, sans-serif", label: "Roboto" },
+//   { value: "Lato, sans-serif", label: "Lato" },
+//   { value: "Georgia, serif", label: "Georgia" },
+//   { value: "Times New Roman, serif", label: "Times New Roman" },
+//   { value: "Courier New, monospace", label: "Courier New" },
+// ];
 
 
 export default function Home() {
