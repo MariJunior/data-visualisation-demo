@@ -1,4 +1,5 @@
-import { Card, Col, Divider, Input, Radio, Row, Select, Slider, Switch, Tabs, Typography } from "antd";
+import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from '@ant-design/icons';
+import { Badge, Card, Col, Input, Row, Select, Slider, Space, Switch, Typography } from "antd";
 import {
   ArcElement,
   BarController,
@@ -24,9 +25,9 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useRef, useState } from "react";
 import { mockDatasets } from "./datasets";
-import { ChartJSComponentProps, ChartTypeEnum, ChartTypeItem, DatasetEnum, LegendPositionEnum, TabItem } from "./types";
+import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
 
 const { Title: AntTitle, Text } = Typography;
 const { Option } = Select;
@@ -59,16 +60,26 @@ ChartJS.register(
   Legend
 );
 
-const chartTypes: ChartTypeItem[] = [
-  { id: ChartTypeEnum.LINE, label: "Line Chart" },
-  { id: ChartTypeEnum.BAR, label: "Bar Chart" },
-  { id: ChartTypeEnum.RADAR, label: "Radar Chart" },
-  { id: ChartTypeEnum.PIE, label: "Pie Chart" },
-  { id: ChartTypeEnum.DOUGHNUT, label: "Doughnut Chart" },
-  { id: ChartTypeEnum.POLAR_AREA, label: "Polar Area Chart" },
-  { id: ChartTypeEnum.BUBBLE, label: "Bubble Chart" },
-  { id: ChartTypeEnum.SCATTER, label: "Scatter Chart" },
-];
+export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum[] => {
+  switch (datasetType) {
+    case DatasetEnum.SALES:
+      return [ChartTypeEnum.LINE, ChartTypeEnum.BAR];
+    case DatasetEnum.USERS:
+      return [ChartTypeEnum.LINE, ChartTypeEnum.BAR];
+    case DatasetEnum.PERFORMANCE:
+      return [ChartTypeEnum.RADAR, ChartTypeEnum.POLAR_AREA];
+    case DatasetEnum.REVENUE:
+      return [ChartTypeEnum.LINE, ChartTypeEnum.BAR];
+    case DatasetEnum.DEMOGRAPHICS:
+      return [ChartTypeEnum.PIE, ChartTypeEnum.DOUGHNUT];
+    case DatasetEnum.COMPARISON:
+      return [ChartTypeEnum.BAR];
+    case DatasetEnum.TIME_DATA:
+      return [ChartTypeEnum.LINE];
+    default:
+      return Object.values(ChartTypeEnum);
+  }
+};
 
 const defaultOptions: ChartOptions<ChartType> = {
   responsive: true,
@@ -114,6 +125,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 }) => {
   const [selectedDataset, setSelectedDataset] = useState<DatasetEnum>(DatasetEnum.SALES);
   const [selectedChartType, setSelectedChartType] = useState<ChartTypeEnum>(ChartTypeEnum.LINE);
+  const [compatibleChartTypes, setCompatibleChartTypes] = useState<ChartTypeEnum[]>([]);
   const [chartOptions, setChartOptions] = useState<ChartOptions<ChartType>>(defaultOptions);
   
   const [showLegend, setShowLegend] = useState(true);
@@ -127,7 +139,18 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS<ChartType, unknown[], unknown> | null>(null);
-  const chartInitializedRef = useRef(false);
+
+  // Обновляем список совместимых типов графиков при изменении датасета
+  useEffect(() => {
+    const chartTypes = getCompatibleChartTypes(selectedDataset);
+    setCompatibleChartTypes(chartTypes);
+    
+    // Если текущий выбранный тип графика не совместим с новым датасетом,
+    // выбираем первый доступный тип из списка совместимых
+    if (chartTypes.length > 0 && !chartTypes.includes(selectedChartType)) {
+      setSelectedChartType(chartTypes[0]);
+    }
+  }, [selectedChartType, selectedDataset]);
 
   const updateChartOptions = useCallback(
     () => {
@@ -252,133 +275,93 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     let currentData: ChartData<ChartType>;
     let chartType = selectedChartType;
     
-    try {
     // Определяем, какой датасет и тип графика использовать
-      if (selectedChartType === ChartTypeEnum.BUBBLE) {
-        currentData = mockDatasets.bubbleData as ChartData<ChartType>;
-      } else if (selectedChartType === ChartTypeEnum.SCATTER) {
-        currentData = mockDatasets.scatterData as ChartData<ChartType>;
-      } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
-        // Для демографических данных лучше использовать круговые диаграммы
-        currentData = mockDatasets.demographics as ChartData<ChartType>;
-        if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
-          chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
-        }
-      } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
-        currentData = mockDatasets.performance as ChartData<ChartType>;
-        if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
-          chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
-        }
-      } else if (selectedDataset === DatasetEnum.TIME_DATA) {
-        currentData = mockDatasets.timeData as ChartData<ChartType>;
-        if (selectedChartType !== ChartTypeEnum.LINE) {
-          chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
-        }
-      } else {
-        // Для остальных датасетов используем выбранный тип графика
-        currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
+    if (selectedChartType === ChartTypeEnum.BUBBLE) {
+      currentData = mockDatasets.bubbleData as ChartData<ChartType>;
+    } else if (selectedChartType === ChartTypeEnum.SCATTER) {
+      currentData = mockDatasets.scatterData as ChartData<ChartType>;
+    } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
+      // Для демографических данных лучше использовать круговые диаграммы
+      currentData = mockDatasets.demographics as ChartData<ChartType>;
+      if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
+        chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
       }
+    } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
+      currentData = mockDatasets.performance as ChartData<ChartType>;
+      if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
+        chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
+      }
+    } else if (selectedDataset === DatasetEnum.TIME_DATA) {
+      currentData = mockDatasets.timeData as ChartData<ChartType>;
+      if (selectedChartType !== ChartTypeEnum.LINE) {
+        chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
+      }
+    } else {
+      // Для остальных датасетов используем выбранный тип графика
+      currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
+    }
 
-      // Создаем дополнительные опции в зависимости от датасета
-      let options = { ...chartOptions };
-      
-      // Для датасета users и timeData добавляем вторую ось Y
-      if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
-          (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) {
-        options = {
-          ...options,
-          scales: {
-            ...options.scales,
-            y: {
-              type: "linear",
+    // Создаем дополнительные опции в зависимости от датасета
+    let options = { ...chartOptions };
+    
+    // Для датасета users и timeData добавляем вторую ось Y
+    if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
+        (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) {
+      options = {
+        ...options,
+        scales: {
+          ...options.scales,
+          y: {
+            type: "linear",
+            display: true,
+            position: "left",
+            title: {
               display: true,
-              position: "left",
-              title: {
-                display: true,
-                text: selectedDataset === DatasetEnum.USERS ? "Active Users" : "Website Traffic",
-                font: {
-                  family: fontFamily,
-                  size: fontSize,
-                }
-              },
-              ticks: {
-                font: {
-                  family: fontFamily,
-                  size: fontSize,
-                }
+              text: selectedDataset === DatasetEnum.USERS ? "Active Users" : "Website Traffic",
+              font: {
+                family: fontFamily,
+                size: fontSize,
               }
             },
-            y1: {
-              type: "linear",
+            ticks: {
+              font: {
+                family: fontFamily,
+                size: fontSize,
+              }
+            }
+          },
+          y1: {
+            type: "linear",
+            display: true,
+            position: "right",
+            title: {
               display: true,
-              position: "right",
-              title: {
-                display: true,
-                text: selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
-                font: {
-                  family: fontFamily,
-                  size: fontSize,
-                }
-              },
-              grid: {
-                drawOnChartArea: false,
-              },
-              ticks: {
-                font: {
-                  family: fontFamily,
-                  size: fontSize,
-                }
+              text: selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
+              font: {
+                family: fontFamily,
+                size: fontSize,
+              }
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            ticks: {
+              font: {
+                family: fontFamily,
+                size: fontSize,
               }
             }
           }
-        };
-      }
-
-      if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
-        if (!currentData.datasets[0].backgroundColor || !Array.isArray(currentData.datasets[0].backgroundColor)) {
-          const colors = Array(currentData.datasets[0].data.length).fill(0).map(() => 
-            `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`
-          );
-          currentData.datasets[0].backgroundColor = colors;
         }
-        
-        options = {
-          ...options,
-          scales: {}
-        };
-      }
-
-      // Создаем график
-      chartInstanceRef.current = new ChartJS(ctx, {
-        data: currentData,
-        type: chartType as keyof ChartTypeRegistry,
-        options: options
-      });
-
-      chartInitializedRef.current = true;
-    } catch (error) {
-      console.error("Ошибка при создании графика: ", error);
-
-      try {
-        chartType = ChartTypeEnum.BAR;
-        currentData = {
-          labels: ['Fallback Data'],
-          datasets: [{
-            label: 'Error Fallback',
-            data: [100],
-            backgroundColor: ['rgba(75, 192, 192, 0.6)']
-          }]
-        } as ChartData<ChartType>;
-        
-        chartInstanceRef.current = new ChartJS(ctx, {
-          type: chartType as keyof ChartTypeRegistry,
-          data: currentData,
-          options: defaultOptions
-        });
-      } catch (fallbackError) {
-        console.error("Even fallback chart failed:", fallbackError);
-      }
+      };
     }
+
+    // Создаем график
+    chartInstanceRef.current = new ChartJS(ctx, {
+      data: currentData,
+      type: chartType as keyof ChartTypeRegistry,
+      options: options
+    });
   }, [chartOptions, selectedChartType, selectedDataset, fontFamily, fontSize, destroyChart]);
 
   useEffect(() => {
@@ -398,198 +381,259 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     ChartJS.defaults.font.size = fontSize;
     
     // Полностью пересоздадим график
-    if (chartRef.current && chartInitializedRef.current) {
+    if (chartRef.current) {
       destroyChart();
       renderChart();
     }
-  }, [fontFamily, fontSize, renderChart]);
+  }, [destroyChart, fontFamily, fontSize, renderChart]);
 
-  const tabItems: TabItem[] = useMemo(() => [
-    {
-      key: "chartType",
-      label: "Chart Type",
-      children: (
-        <div className="p-4">
-          <Radio.Group 
-            value={selectedChartType} 
-            onChange={(e) => setSelectedChartType(e.target.value)}
-            className="flex flex-wrap gap-2"
-          >
-            {chartTypes.map((type) => (
-              <Radio.Button key={type.id} value={type.id}>
-                {type.label}
-              </Radio.Button>
-            ))}
-          </Radio.Group>
-        </div>
-      ),
-    },
-    {
-      key: "dataset",
-      label: "Dataset",
-      children: (
-        <div className="p-4">
-          <Radio.Group 
-            value={selectedDataset} 
-            onChange={(e) => setSelectedDataset(e.target.value)}
-            className="flex flex-wrap gap-2"
-          >
-            <Radio.Button value={DatasetEnum.SALES}>Sales Data</Radio.Button>
-            <Radio.Button value={DatasetEnum.USERS}>User Statistics</Radio.Button>
-            <Radio.Button value={DatasetEnum.PERFORMANCE}>Performance Metrics</Radio.Button>
-            <Radio.Button value={DatasetEnum.REVENUE}>Revenue by Category</Radio.Button>
-            <Radio.Button value={DatasetEnum.DEMOGRAPHICS}>Demographics</Radio.Button>
-            <Radio.Button value={DatasetEnum.COMPARISON}>Regional Comparison</Radio.Button>
-            <Radio.Button value={DatasetEnum.TIME_DATA}>Time Series</Radio.Button>
-          </Radio.Group>
-        </div>
-      ),
-    },
-    {
-      key: "appearance",
-      label: "Appearance",
-      children: (
-        <div className="p-4 space-y-4">
-          <div>
-            <Text className="block mb-2">Chart Title</Text>
-            <Input 
-              value={chartTitle} 
-              onChange={(e) => setChartTitle(e.target.value)}
-              className="w-full max-w-md"
-            />
-            <div className="mt-2">
-              <Switch 
-                checked={showTitle} 
-                onChange={setShowTitle} 
-                className="mr-2"
-              />
-              <Text>Show Title</Text>
-            </div>
-          </div>
-          
-          <Divider className="my-4" />
-          
-          <div>
-            <Text className="block mb-2">Legend</Text>
-            <div className="flex items-center gap-4">
-              <div>
-                <Switch 
-                  checked={showLegend} 
-                  onChange={setShowLegend} 
-                  className="mr-2"
-                />
-                <Text>Show Legend</Text>
-              </div>
-              
-              <div>
-                <Text className="mr-2">Position:</Text>
-                <Select 
-                  value={legendPosition} 
-                  onChange={setLegendPosition}
-                  disabled={!showLegend}
-                  style={{ width: 120 }}
-                >
-                  <Option value={LegendPositionEnum.TOP}>Top</Option>
-                  <Option value={LegendPositionEnum.LEFT}>Left</Option>
-                  <Option value={LegendPositionEnum.BOTTOM}>Bottom</Option>
-                  <Option value={LegendPositionEnum.RIGHT}>Right</Option>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "advanced",
-      label: "Advanced",
-      children: (
-        <div className="p-4 space-y-6">
-          <div>
-            <Text className="block mb-2">Aspect Ratio: {aspectRatio}</Text>
-            <Slider 
-              min={0.5} 
-              max={4} 
-              step={0.1} 
-              value={aspectRatio}
-              onChange={setAspectRatio}
-              className="w-full max-w-md"
-            />
-          </div>
-          
-          <div>
-            <Text className="block mb-2">Animation Duration: {animationDuration}ms</Text>
-            <Slider 
-              min={0} 
-              max={2000} 
-              step={100} 
-              value={animationDuration}
-              onChange={setAnimationDuration}
-              className="w-full max-w-md"
-            />
-          </div>
-          
-          <div>
-            <Text className="block mb-2">Border Width: {borderWidth}px</Text>
-            <Slider 
-              min={0} 
-              max={10} 
-              step={1} 
-              value={borderWidth}
-              onChange={setBorderWidth}
-              className="w-full max-w-md"
-            />
-          </div>
-          
-          {selectedChartType === ChartTypeEnum.LINE && (
-            <div>
-              <Text className="block mb-2">Line Tension: {tension}</Text>
-              <Slider 
-                min={0} 
-                max={1} 
-                step={0.1} 
-                value={tension}
-                onChange={setTension}
-                className="w-full max-w-md"
-              />
-            </div>
-          )}
-        </div>
-      ),
-    },
-  ], 
-  [
-    animationDuration, 
-    aspectRatio, 
-    borderWidth, 
-    chartTitle, 
-    legendPosition, 
-    selectedChartType, 
-    selectedDataset, 
-    showLegend, 
-    showTitle, 
-    tension
-  ]);
+  // Функция для получения иконки в зависимости от типа графика
+  const getChartIcon = (chartType: ChartTypeEnum) => {
+    switch (chartType) {
+      case ChartTypeEnum.LINE:
+        return <LineChartOutlined />;
+      case ChartTypeEnum.BAR:
+        return <BarChartOutlined />;
+      case ChartTypeEnum.PIE:
+      case ChartTypeEnum.DOUGHNUT:
+        return <PieChartOutlined />;
+      case ChartTypeEnum.RADAR:
+      case ChartTypeEnum.POLAR_AREA:
+        return <RadarChartOutlined />;
+      case ChartTypeEnum.BUBBLE:
+      case ChartTypeEnum.SCATTER:
+        return <DotChartOutlined />;
+      default:
+        return <LineChartOutlined />;
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
-      <AntTitle level={2} className="text-center mb-8">Chart.js Visualization Demo</AntTitle>
-      
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={8}>
-          <Card className="shadow-md">
-            <Tabs items={tabItems} defaultActiveKey="chartType" />
-          </Card>
-        </Col>
-        
-        <Col xs={24} lg={16}>
-          <Card className="shadow-md p-4 h-full">
-            <div className="w-full h-full min-h-[400px] flex items-center justify-center">
-              <canvas ref={chartRef}></canvas>
+    <div className="p-6 bg-gradient-to-br from-indigo-400 via-purple-300 to-pink-300 rounded-xl shadow-lg">
+      <Card 
+        className="chart-container overflow-hidden border-0"
+        style={{ 
+          boxShadow: '0 10px 30px rgba(99, 102, 241, 0.2)', 
+          borderRadius: '12px',
+          background: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)'
+        }}
+        title={
+          <div className="flex items-center justify-between mt-5">
+            <Badge.Ribbon 
+              text={selectedChartType.charAt(0).toUpperCase() + selectedChartType.slice(1)} 
+              color="blue"
+            >
+              <AntTitle level={2} className="flex items-center border-3 border-dashed border-blue-200">
+                {getChartIcon(selectedChartType)}
+                <span className="mr-10">Chart.js Visualization Demo</span>
+              </AntTitle>
+            </Badge.Ribbon>
+            <div className="text-xs text-gray-500">
+              Powered by Chart.js ✨
             </div>
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        }
+      >
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <div 
+              className="relative bg-white rounded-lg p-4 shadow-inner" 
+              style={{ 
+                height: '400px', 
+                width: '100%',
+                backgroundImage: 'radial-gradient(circle at 1px 1px, #d4c2e9 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+                boxShadow: 'inset 0 2px 10px rgba(99, 102, 241, 0.1)'
+              }}
+            >
+              <canvas ref={chartRef} />
+            </div>
+          </Col>
+      
+          <Col span={24}>
+            <Space direction="horizontal" align="start" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+              {/* Группа выбора данных */}
+              <Card 
+                size="small" 
+                title={<span className="flex items-center"><DotChartOutlined className="mr-2" /> Data</span>}
+                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
+                style={{ 
+                  borderRadius: '8px', 
+                  border: '1px solid #c4b5fd',
+                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                }}
+                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+              >
+                <Space direction="vertical" className="w-full">
+                  <div>
+                    <Text>Dataset</Text>
+                    <Select
+                      style={{ width: '100%' }}
+                      value={selectedDataset}
+                      onChange={(value) => setSelectedDataset(value)}
+                    >
+                      {Object.values(DatasetEnum).map((dataset) => (
+                        <Option key={dataset} value={dataset}>
+                          {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace('_', ' ')}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+      
+                  <div>
+                    <Text>Chart Type</Text>
+                    <Select
+                      style={{ width: '100%' }}
+                      value={selectedChartType}
+                      onChange={(value) => setSelectedChartType(value)}
+                    >
+                      {compatibleChartTypes.map((chartType) => (
+                        <Option key={chartType} value={chartType}>
+                          {chartType.charAt(0).toUpperCase() + chartType.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+                </Space>
+              </Card>
+      
+              {/* Группа настроек внешнего вида */}
+              <Card 
+                size="small" 
+                title={<span className="flex items-center"><i className="mr-2">🎨</i> Appearance</span>}
+                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
+                style={{ 
+                  borderRadius: '8px', 
+                  border: '1px solid #c4b5fd',
+                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                }}
+                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <Text>Border Width: {borderWidth}px</Text>
+                    <Slider
+                      min={0}
+                      max={5}
+                      value={borderWidth}
+                      onChange={(value) => setBorderWidth(value)}
+                    />
+                  </div>
+                </Space>
+              </Card>
+      
+              {/* Группа настроек легенды и заголовка */}
+              <Card 
+                size="small" 
+                title={<span className="flex items-center"><i className="mr-2">📝</i> Legend & Title</span>}
+                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
+                style={{ 
+                  borderRadius: '8px', 
+                  border: '1px solid #c4b5fd',
+                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                }}
+                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <Text>Show Legend</Text>
+                    <Switch
+                      checked={showLegend}
+                      onChange={(checked) => setShowLegend(checked)}
+                      style={{ marginLeft: 8 }}
+                    />
+                  </div>
+      
+                  {showLegend && (
+                    <div>
+                      <Text>Legend Position</Text>
+                      <Select
+                        style={{ width: '100%' }}
+                        value={legendPosition}
+                        onChange={(value) => setLegendPosition(value)}
+                      >
+                        {Object.values(LegendPositionEnum).map((position) => (
+                          <Option key={position} value={position}>{position}</Option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
+      
+                  <div>
+                    <Text>Show Title</Text>
+                    <Switch
+                      checked={showTitle}
+                      onChange={(checked) => setShowTitle(checked)}
+                      style={{ marginLeft: 8 }}
+                    />
+                  </div>
+      
+                  {showTitle && (
+                    <div>
+                      <Text>Chart Title</Text>
+                      <Input
+                        value={chartTitle}
+                        onChange={(e) => setChartTitle(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </Space>
+              </Card>
+      
+              {/* Группа настроек анимации */}
+              <Card 
+                size="small" 
+                title={<span className="flex items-center"><i className="mr-2">✨</i> Animation & Layout</span>}
+                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
+                style={{ 
+                  borderRadius: '8px', 
+                  border: '1px solid #c4b5fd',
+                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                }}
+                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <Text>Animation Duration: {animationDuration}ms</Text>
+                    <Slider
+                      min={0}
+                      max={2000}
+                      step={100}
+                      value={animationDuration}
+                      onChange={(value) => setAnimationDuration(value)}
+                    />
+                  </div>
+      
+                  <div>
+                    <Text>Aspect Ratio: {aspectRatio}</Text>
+                    <Slider
+                      min={1}
+                      max={4}
+                      step={0.1}
+                      value={aspectRatio}
+                      onChange={(value) => setAspectRatio(value)}
+                    />
+                  </div>
+      
+                  {(selectedChartType === ChartTypeEnum.LINE) && (
+                    <div>
+                      <Text>Line Tension: {tension}</Text>
+                      <Slider
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        value={tension}
+                        onChange={(value) => setTension(value)}
+                      />
+                    </div>
+                  )}
+                </Space>
+              </Card>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
     </div>
   );
 };

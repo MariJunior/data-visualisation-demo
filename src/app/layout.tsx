@@ -1,4 +1,3 @@
-import { AntdRegistry } from '@ant-design/nextjs-registry';
 import '@ant-design/v5-patch-for-react-19';
 import type { Metadata } from "next";
 import { Fira_Code, Geist, Geist_Mono, Inter, JetBrains_Mono, Lato, Montserrat, Roboto, Roboto_Mono } from "next/font/google";
@@ -71,7 +70,7 @@ export default function RootLayout({
           antialiased
         `}
       >
-        <AntdRegistry>{children}</AntdRegistry>
+        {children}
       </body>
     </html>
   );
