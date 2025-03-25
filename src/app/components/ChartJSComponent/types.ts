@@ -46,5 +46,6 @@ export interface TabItem {
 export interface ChartJSComponentProps {
   fontSize?: number;
   fontFamily?: string;
+  customData?: any; // Добавляем поддержку пользовательских данных
 };
 

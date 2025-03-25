@@ -1,6 +1,6 @@
 "use client";
 
-import { Select, Slider, Typography } from "antd";
+import { Alert, Select, Slider, Typography } from "antd";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -8,6 +8,7 @@ const { Title } = Typography;
 
 // Динамический импорт компонентов для отключения SSR
 const ChartJSComponent = dynamic(() => import("./components/ChartJSComponent"), { ssr: false });
+const DataUploader = dynamic(() => import("./components/DataUploader"), { ssr: false });
 // const NivoComponent = dynamic(() => import("./components/NivoComponent"), { ssr: false });
 // const PlotlyComponent = dynamic(() => import("./components/PlotlyComponent"), { ssr: false });
 
@@ -28,22 +29,16 @@ const fontOptions = [
   { value: "Georgia, serif", label: "Georgia" },
   { value: "Times New Roman, serif", label: "Times New Roman" },
 ];
-// В page.tsx
-// const fontOptions = [
-//   { value: "Arial, sans-serif", label: "Arial" },
-//   { value: "Helvetica, sans-serif", label: "Helvetica" },
-//   { value: "Roboto, sans-serif", label: "Roboto" },
-//   { value: "Lato, sans-serif", label: "Lato" },
-//   { value: "Georgia, serif", label: "Georgia" },
-//   { value: "Times New Roman, serif", label: "Times New Roman" },
-//   { value: "Courier New, monospace", label: "Courier New" },
-// ];
-
 
 export default function Home() {
   const [library, setLibrary] = useState("chartjs");
   const [fontSize, setFontSize] = useState(14);
-  const [fontFamily, setFontFamily] = useState("Arial");
+  const [fontFamily, setFontFamily] = useState("JetBrains Mono");
+  const [customData, setCustomData] = useState(null);
+
+  const handleDataLoaded = (data: any) => {
+    setCustomData(data);
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -71,7 +66,7 @@ export default function Home() {
         
         <div>
           <label className="block mb-2">Font Family:</label>
-          <Select 
+          <Select
             value={fontFamily} 
             onChange={setFontFamily}
             style={{ width: 200 }}
@@ -93,11 +88,26 @@ export default function Home() {
             onChange={setFontSize}
           />
         </div>
-
       </div>
 
+      <Alert
+        message={"К сожалению, сейчас шрифт обновляется на графике только при обновлении страницы"}
+        type="warning"
+        className="mt-2"
+        showIcon
+      />
+
       <div className="mt-6">
-        {library === "chartjs" && <ChartJSComponent fontSize={fontSize} />}
+        {library === "chartjs" && (
+          <>
+            <DataUploader onDataLoaded={handleDataLoaded} />
+            <ChartJSComponent 
+              fontSize={fontSize} 
+              fontFamily={fontFamily} 
+              customData={customData}
+            />
+          </>
+        )}
         {/* {library === "nivo" && <NivoComponent fontSize={fontSize} />}
         {library === "plotly" && <PlotlyComponent fontSize={fontSize} />} */}
       </div>

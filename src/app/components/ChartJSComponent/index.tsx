@@ -26,6 +26,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
+import DataUploader from '../DataUploader';
 import { mockDatasets } from "./datasets";
 import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
 
@@ -122,11 +123,14 @@ const defaultOptions: ChartOptions<ChartType> = {
 export const ChartJSComponent: FC<ChartJSComponentProps> = ({ 
   fontSize = 14,
   fontFamily = "Arial",
+  customData = null,
 }) => {
   const [selectedDataset, setSelectedDataset] = useState<DatasetEnum>(DatasetEnum.SALES);
   const [selectedChartType, setSelectedChartType] = useState<ChartTypeEnum>(ChartTypeEnum.LINE);
   const [compatibleChartTypes, setCompatibleChartTypes] = useState<ChartTypeEnum[]>([]);
   const [chartOptions, setChartOptions] = useState<ChartOptions<ChartType>>(defaultOptions);
+  // Добавим состояние для хранения пользовательских данных
+  const [userData, setUserData] = useState<any>(null);
   
   const [showLegend, setShowLegend] = useState(true);
   const [legendPosition, setLegendPosition] = useState<LegendPositionEnum>(LegendPositionEnum.TOP);
@@ -275,30 +279,36 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     let currentData: ChartData<ChartType>;
     let chartType = selectedChartType;
     
-    // Определяем, какой датасет и тип графика использовать
-    if (selectedChartType === ChartTypeEnum.BUBBLE) {
-      currentData = mockDatasets.bubbleData as ChartData<ChartType>;
-    } else if (selectedChartType === ChartTypeEnum.SCATTER) {
-      currentData = mockDatasets.scatterData as ChartData<ChartType>;
-    } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
-      // Для демографических данных лучше использовать круговые диаграммы
-      currentData = mockDatasets.demographics as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
-        chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
-      }
-    } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
-      currentData = mockDatasets.performance as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
-        chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
-      }
-    } else if (selectedDataset === DatasetEnum.TIME_DATA) {
-      currentData = mockDatasets.timeData as ChartData<ChartType>;
-      if (selectedChartType !== ChartTypeEnum.LINE) {
-        chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
-      }
+    if (userData) {
+      currentData = userData;
+    } else if (customData) {
+      currentData = customData;
     } else {
-      // Для остальных датасетов используем выбранный тип графика
-      currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
+      // Определяем, какой датасет и тип графика использовать
+      if (selectedChartType === ChartTypeEnum.BUBBLE) {
+        currentData = mockDatasets.bubbleData as ChartData<ChartType>;
+      } else if (selectedChartType === ChartTypeEnum.SCATTER) {
+        currentData = mockDatasets.scatterData as ChartData<ChartType>;
+      } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
+        // Для демографических данных лучше использовать круговые диаграммы
+        currentData = mockDatasets.demographics as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
+          chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
+        }
+      } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
+        currentData = mockDatasets.performance as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
+          chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
+        }
+      } else if (selectedDataset === DatasetEnum.TIME_DATA) {
+        currentData = mockDatasets.timeData as ChartData<ChartType>;
+        if (selectedChartType !== ChartTypeEnum.LINE) {
+          chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
+        }
+      } else {
+        // Для остальных датасетов используем выбранный тип графика
+        currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
+      }
     }
 
     // Создаем дополнительные опции в зависимости от датасета
@@ -362,7 +372,13 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       type: chartType as keyof ChartTypeRegistry,
       options: options
     });
-  }, [chartOptions, selectedChartType, selectedDataset, fontFamily, fontSize, destroyChart]);
+  }, [destroyChart, selectedChartType, userData, customData, chartOptions, selectedDataset, fontFamily, fontSize]);
+
+  // Добавим функцию для загрузки пользовательских данных
+  const handleDataLoaded = (data: any) => {
+    setUserData(data);
+  };
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -372,7 +388,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     }, 0);
     
     return () => clearTimeout(timer);
-  }, [selectedDataset, selectedChartType, chartOptions, renderChart]);
+  }, [selectedDataset, selectedChartType, chartOptions, renderChart, userData]);
 
   // Добавим эффект для обновления графика при изменении шрифта
   useEffect(() => {
@@ -410,6 +426,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   return (
     <div className="p-6 bg-gradient-to-br from-indigo-400 via-purple-300 to-pink-300 rounded-xl shadow-lg">
+      <DataUploader onDataLoaded={handleDataLoaded} />
+
       <Card 
         className="chart-container overflow-hidden border-0"
         style={{ 
@@ -426,7 +444,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             >
               <AntTitle level={2} className="flex items-center border-3 border-dashed border-blue-200">
                 {getChartIcon(selectedChartType)}
-                <span className="mr-10">Chart.js Visualization Demo</span>
+                <span className="mr-10" style={{ fontFamily: fontFamily }}>Chart.js Visualization Demo</span>
               </AntTitle>
             </Badge.Ribbon>
             <div className="text-xs text-gray-500">
