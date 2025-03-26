@@ -314,31 +314,9 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
     // Создаем дополнительные опции в зависимости от датасета
     // Обновляем опции графика с учетом темы
-    let options = { 
+    // Create the options object with a type assertion
+    const options = {
       ...chartOptions,
-      scales: {
-        ...chartOptions.scales,
-        x: {
-          ...chartOptions.scales?.x,
-          grid: {
-            color: gridColor,
-          },
-          ticks: {
-            ...chartOptions.scales?.x?.ticks,
-            color: textColor,
-          }
-        },
-        y: {
-          ...chartOptions.scales?.y,
-          grid: {
-            color: gridColor,
-          },
-          ticks: {
-            ...chartOptions.scales?.y?.ticks,
-            color: textColor,
-          }
-        }
-      },
       plugins: {
         ...chartOptions.plugins,
         legend: {
@@ -352,35 +330,29 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           ...chartOptions.plugins?.title,
           color: textColor,
         }
-      }
-    };
-    
-    // Для датасета users и timeData добавляем вторую ось Y
-    if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
-        (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) {
-      options = {
-        ...options,
-        scales: {
-          ...options.scales,
-          y: {
-            type: "linear",
-            display: true,
-            position: "left",
-            title: {
-              display: true,
-              text: selectedDataset === DatasetEnum.USERS ? "Active Users" : "Website Traffic",
-              font: {
-                family: fontFamily,
-                size: fontSize,
-              }
-            },
-            ticks: {
-              font: {
-                family: fontFamily,
-                size: fontSize,
-              }
-            }
+      },
+      scales: chartType !== ChartTypeEnum.PIE && 
+              chartType !== ChartTypeEnum.DOUGHNUT && 
+              chartType !== ChartTypeEnum.RADAR && 
+              chartType !== ChartTypeEnum.POLAR_AREA ? {
+        x: {
+          grid: {
+            color: gridColor,
           },
+          ticks: {
+            color: textColor,
+          }
+        },
+        y: {
+          grid: {
+            color: gridColor,
+          },
+          ticks: {
+            color: textColor,
+          }
+        },
+        ...(((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
+            (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) ? {
           y1: {
             type: "linear",
             display: true,
@@ -395,17 +367,19 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             },
             grid: {
               drawOnChartArea: false,
+              color: gridColor,
             },
             ticks: {
               font: {
                 family: fontFamily,
                 size: fontSize,
-              }
+              },
+              color: textColor,
             }
           }
-        }
-      };
-    }
+        } : {})
+      } : undefined
+    } as ChartOptions<ChartType>;
 
     // Создаем график
     chartInstanceRef.current = new ChartJS(ctx, {

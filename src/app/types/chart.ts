@@ -1,4 +1,4 @@
-import { BubbleDataPoint, ChartDataset, ChartType, Point } from 'chart.js';
+import { BubbleDataPoint, ChartDataset, ChartType, Point } from "chart.js";
 
 // Тип для данных, которые могут быть в datasets
 export type ChartDataPointType = number | string | Point | BubbleDataPoint | [number, number] | null;
