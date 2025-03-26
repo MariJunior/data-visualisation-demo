@@ -59,8 +59,8 @@ export default function Home() {
             style={{ width: 200 }}
           >
             <Select.Option value="chartjs">Chart.js</Select.Option>
-            <Select.Option value="nivo">Nivo</Select.Option>
-            <Select.Option value="plotly">Plotly.js</Select.Option>
+            <Select.Option value="nivo" disabled>Nivo</Select.Option>
+            <Select.Option value="plotly" disabled>Plotly.js</Select.Option>
           </Select>
         </div>
         

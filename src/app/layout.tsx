@@ -2,6 +2,7 @@ import '@ant-design/v5-patch-for-react-19';
 import type { Metadata } from "next";
 import { Fira_Code, Geist, Geist_Mono, Inter, JetBrains_Mono, Lato, Montserrat, Roboto, Roboto_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from './providers';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,7 +71,9 @@ export default function RootLayout({
           antialiased
         `}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

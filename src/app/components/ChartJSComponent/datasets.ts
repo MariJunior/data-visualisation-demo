@@ -1,3 +1,5 @@
+import { generateRandomColor } from "@/app/utils/generateRandomColor";
+import { generateRandomData } from "@/app/utils/generateRandomData";
 import { BubbleDataPoint, ChartData, ScatterDataPoint } from "chart.js";
 
 type DatasetMocksTypes = {
@@ -10,19 +12,6 @@ type DatasetMocksTypes = {
   bubbleData: ChartData<"bubble", BubbleDataPoint[]>;
   scatterData: ChartData<"scatter", ScatterDataPoint[]>;
   timeData: ChartData<"line">;
-};
-
-// Функция для генерации случайных цветов
-const generateRandomColor = (opacity = 1) => {
-  const r = Math.floor(Math.random() * 255);
-  const g = Math.floor(Math.random() * 255);
-  const b = Math.floor(Math.random() * 255);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-
-// Функция для генерации массива случайных чисел
-const generateRandomData = (count: number, min = 0, max = 100) => {
-  return Array.from({ length: count }, () => Math.floor(Math.random() * (max - min + 1)) + min);
 };
 
 export const mockDatasets: DatasetMocksTypes = {

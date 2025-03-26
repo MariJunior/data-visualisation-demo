@@ -1,4 +1,5 @@
-import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from '@ant-design/icons';
+import { useIsDarkMode } from "@/app/hooks/useIsDarkMode";
+import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from "@ant-design/icons";
 import { Badge, Card, Col, Input, Row, Select, Slider, Space, Switch, Typography } from "antd";
 import {
   ArcElement,
@@ -26,7 +27,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
-import DataUploader from '../DataUploader';
+import DataUploader from "../DataUploader";
 import { mockDatasets } from "./datasets";
 import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
 
@@ -143,6 +144,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS<ChartType, unknown[], unknown> | null>(null);
+
+  const isDarkMode = useIsDarkMode();
 
   // Обновляем список совместимых типов графиков при изменении датасета
   useEffect(() => {
@@ -274,7 +277,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-
+  
+    // Настраиваем цвета в зависимости от темы
+    const gridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+    const textColor = isDarkMode ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)";
 
     let currentData: ChartData<ChartType>;
     let chartType = selectedChartType;
@@ -312,7 +318,47 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     }
 
     // Создаем дополнительные опции в зависимости от датасета
-    let options = { ...chartOptions };
+    // Обновляем опции графика с учетом темы
+    let options = { 
+      ...chartOptions,
+      scales: {
+        ...chartOptions.scales,
+        x: {
+          ...chartOptions.scales?.x,
+          grid: {
+            color: gridColor,
+          },
+          ticks: {
+            ...chartOptions.scales?.x?.ticks,
+            color: textColor,
+          }
+        },
+        y: {
+          ...chartOptions.scales?.y,
+          grid: {
+            color: gridColor,
+          },
+          ticks: {
+            ...chartOptions.scales?.y?.ticks,
+            color: textColor,
+          }
+        }
+      },
+      plugins: {
+        ...chartOptions.plugins,
+        legend: {
+          ...chartOptions.plugins?.legend,
+          labels: {
+            ...chartOptions.plugins?.legend?.labels,
+            color: textColor,
+          }
+        },
+        title: {
+          ...chartOptions.plugins?.title,
+          color: textColor,
+        }
+      }
+    };
     
     // Для датасета users и timeData добавляем вторую ось Y
     if ((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
@@ -425,16 +471,28 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   };
 
   return (
-    <div className="p-6 bg-gradient-to-br from-indigo-400 via-purple-300 to-pink-300 rounded-xl shadow-lg">
+    <div 
+      className="
+        p-6 
+        bg-gradient-to-br 
+        from-indigo-400 
+        via-purple-300 
+        to-pink-300
+        dark:from-indigo-900 
+        dark:via-purple-800 
+        dark:to-pink-800
+        rounded-xl 
+        shadow-lg
+      "
+    >
       <DataUploader onDataLoaded={handleDataLoaded} />
 
       <Card 
         className="chart-container overflow-hidden border-0"
         style={{ 
-          boxShadow: '0 10px 30px rgba(99, 102, 241, 0.2)', 
-          borderRadius: '12px',
-          background: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(10px)'
+          boxShadow: "0 10px 30px rgba(99, 102, 241, 0.2)", 
+          borderRadius: "12px",
+          backdropFilter: "blur(10px)"
         }}
         title={
           <div className="flex items-center justify-between mt-5">
@@ -456,13 +514,17 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         <Row gutter={[16, 16]}>
           <Col span={24}>
             <div 
-              className="relative bg-white rounded-lg p-4 shadow-inner" 
+              className="relative bg-white dark:bg-gray-900 rounded-lg p-4 shadow-inner" 
               style={{ 
-                height: '400px', 
-                width: '100%',
-                backgroundImage: 'radial-gradient(circle at 1px 1px, #c9c6cd 1px, transparent 0)',
-                backgroundSize: '14px 14px',
-                boxShadow: 'inset 0 2px 10px rgba(99, 102, 241, 0.1)'
+                height: "400px", 
+                width: "100%",
+                backgroundImage: isDarkMode ? 
+                  "radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.2) 1px, transparent 0), radial-gradient(circle at 7px 7px, rgba(255, 255, 255, 0.1) 1px, transparent 0)" : 
+                  "radial-gradient(circle at 1px 1px, #c9c6cd 1px, transparent 0)",
+                backgroundSize: isDarkMode ? "14px 14px, 14px 14px" : "14px 14px",
+                boxShadow: isDarkMode ? 
+                  "inset 0 2px 10px rgba(0, 0, 0, 0.3)" : 
+                  "inset 0 2px 10px rgba(99, 102, 241, 0.1)"
               }}
             >
               <canvas ref={chartRef} />
@@ -470,30 +532,29 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           </Col>
       
           <Col span={24}>
-            <Space direction="horizontal" align="start" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space direction="horizontal" align="start" wrap style={{ width: "100%", justifyContent: "space-between" }}>
               {/* Группа выбора данных */}
               <Card 
                 size="small" 
                 title={<span className="flex items-center"><DotChartOutlined className="mr-2" /> Data</span>}
                 className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
                 style={{ 
-                  borderRadius: '8px', 
-                  border: '1px solid #c4b5fd',
-                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                  borderRadius: "8px", 
+                  border: "1px solid #c4b5fd",
                 }}
-                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
               >
                 <Space direction="vertical" className="w-full">
                   <div>
                     <Text>Dataset</Text>
                     <Select
-                      style={{ width: '100%' }}
+                      style={{ width: "100%" }}
                       value={selectedDataset}
                       onChange={(value) => setSelectedDataset(value)}
                     >
                       {Object.values(DatasetEnum).map((dataset) => (
                         <Option key={dataset} value={dataset}>
-                          {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace('_', ' ')}
+                          {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace("_", " ")}
                         </Option>
                       ))}
                     </Select>
@@ -502,13 +563,13 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                   <div>
                     <Text>Chart Type</Text>
                     <Select
-                      style={{ width: '100%' }}
+                      style={{ width: "100%" }}
                       value={selectedChartType}
                       onChange={(value) => setSelectedChartType(value)}
                     >
                       {compatibleChartTypes.map((chartType) => (
                         <Option key={chartType} value={chartType}>
-                          {chartType.charAt(0).toUpperCase() + chartType.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                          {chartType.charAt(0).toUpperCase() + chartType.slice(1).replace(/([A-Z])/g, " $1").trim()}
                         </Option>
                       ))}
                     </Select>
@@ -522,13 +583,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                 title={<span className="flex items-center"><i className="mr-2">🎨</i> Appearance</span>}
                 className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
                 style={{ 
-                  borderRadius: '8px', 
-                  border: '1px solid #c4b5fd',
-                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                  borderRadius: "8px", 
+                  border: "1px solid #c4b5fd",
                 }}
-                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
               >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: "100%" }}>
                   <div>
                     <Text>Border Width: {borderWidth}px</Text>
                     <Slider
@@ -547,13 +607,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                 title={<span className="flex items-center"><i className="mr-2">📝</i> Legend & Title</span>}
                 className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
                 style={{ 
-                  borderRadius: '8px', 
-                  border: '1px solid #c4b5fd',
-                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                  borderRadius: "8px", 
+                  border: "1px solid #c4b5fd",
                 }}
-                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
               >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: "100%" }}>
                   <div>
                     <Text>Show Legend</Text>
                     <Switch
@@ -567,7 +626,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                     <div>
                       <Text>Legend Position</Text>
                       <Select
-                        style={{ width: '100%' }}
+                        style={{ width: "100%" }}
                         value={legendPosition}
                         onChange={(value) => setLegendPosition(value)}
                       >
@@ -605,13 +664,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                 title={<span className="flex items-center"><i className="mr-2">✨</i> Animation & Layout</span>}
                 className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
                 style={{ 
-                  borderRadius: '8px', 
-                  border: '1px solid #c4b5fd',
-                  background: 'linear-gradient(to bottom, #f5f3ff, #ffffff)'
+                  borderRadius: "8px", 
+                  border: "1px solid #c4b5fd",
                 }}
-                styles={{ header: { background: '#ddd6fe', color: '#5b21b6' }}}
+                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
               >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: "100%" }}>
                   <div>
                     <Text>Animation Duration: {animationDuration}ms</Text>
                     <Slider
