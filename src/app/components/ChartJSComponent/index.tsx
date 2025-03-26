@@ -1,7 +1,7 @@
 import { useIsDarkMode } from "@/app/hooks/useIsDarkMode";
 import { ChartDataType } from "@/app/types/chart";
 import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from "@ant-design/icons";
-import { Badge, Card, Col, Input, Row, Select, Slider, Space, Switch, Typography } from "antd";
+import { Badge, Card, Col, Row, Typography } from "antd";
 import {
   ArcElement,
   BarController,
@@ -25,12 +25,18 @@ import {
   Title,
   Tooltip
 } from "chart.js";
+import CrosshairPlugin from 'chartjs-plugin-crosshair';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import zoomPlugin from 'chartjs-plugin-zoom';
+import { ZoomPluginOptions } from "chartjs-plugin-zoom/types/options";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { colorSchemes } from "./colorSchemes";
+import { ChartControls } from "./components";
 import { mockDatasets } from "./datasets";
-import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
+import { defaultConfig } from "./defaultConfig";
+import { ChartConfig, ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum, LineStyleEnum } from "./types";
 
-const { Title: AntTitle, Text } = Typography;
-const { Option } = Select;
+const { Title: AntTitle } = Typography;
 
 ChartJS.register(
   // Scales
@@ -57,7 +63,10 @@ ChartJS.register(
   // Plugins
   Title,
   Tooltip,
-  Legend
+  Legend,
+  zoomPlugin,
+  ChartDataLabels,
+  CrosshairPlugin
 );
 
 export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum[] => {
@@ -128,8 +137,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   const [selectedChartType, setSelectedChartType] = useState<ChartTypeEnum>(ChartTypeEnum.LINE);
   const [compatibleChartTypes, setCompatibleChartTypes] = useState<ChartTypeEnum[]>([]);
   const [chartOptions, setChartOptions] = useState<ChartOptions<ChartType>>(defaultOptions);
-  // Добавим состояние для хранения пользовательских данных
-  
+  const [config, setConfig] = useState<ChartConfig>(defaultConfig);
+
   const [showLegend, setShowLegend] = useState(true);
   const [legendPosition, setLegendPosition] = useState<LegendPositionEnum>(LegendPositionEnum.TOP);
   const [chartTitle, setChartTitle] = useState("Chart.js Demo");
@@ -155,6 +164,128 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       setSelectedChartType(chartTypes[0]);
     }
   }, [selectedChartType, selectedDataset]);
+
+  const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
+    setConfig(newConfig);
+
+    // Update chart options based on the new configuration
+    setChartOptions(prevOptions => {
+      // Create a new options object
+      const newOptions: ChartOptions<ChartType> = {
+        ...prevOptions,
+        aspectRatio: newConfig.appearance.aspectRatio,
+        plugins: {
+          ...prevOptions.plugins,
+          title: {
+            ...prevOptions.plugins?.title,
+            display: newConfig.title.display,
+            text: newConfig.title.text,
+            color: newConfig.title.color,
+          },
+          subtitle: {
+            display: newConfig.subtitle.display,
+            text: newConfig.subtitle.text,
+            color: newConfig.subtitle.color,
+          },
+          legend: {
+            ...prevOptions.plugins?.legend,
+            display: newConfig.legend.display,
+            position: newConfig.legend.position,
+            labels: {
+              ...prevOptions.plugins?.legend?.labels,
+              color: newConfig.legend.color,
+            },
+          },
+          tooltip: {
+            ...prevOptions.plugins?.tooltip,
+            enabled: newConfig.tooltip.enabled,
+            backgroundColor: newConfig.tooltip.backgroundColor,
+            borderColor: newConfig.tooltip.borderColor,
+            mode: newConfig.tooltip.mode,
+            intersect: newConfig.tooltip.intersect,
+            padding: newConfig.tooltip.padding,
+          },
+          // Add zoom plugin configuration
+          zoom: {
+            zoom: {
+              enabled: newConfig.plugins.zoom.enabled,
+              mode: newConfig.plugins.zoom.mode,
+              sensitivity: newConfig.plugins.zoom.sensitivity,
+            } as ZoomPluginOptions["zoom"],
+            pan: {
+              enabled: newConfig.plugins.zoom.enabled,
+            },
+          },
+          // // Add crosshair plugin configuration
+          // crosshair: {
+          //   line: {
+          //     color: config.plugins.crosshair.color,
+          //     width: config.plugins.crosshair.width,
+          //   },
+          //   sync: {
+          //     enabled: false,
+          //   },
+          //   zoom: {
+          //     enabled: false,
+          //   },
+          // },
+          // Add datalabels plugin configuration
+          datalabels: {
+            display: false, // Default to off, can be enabled in specific chart types
+          },
+        },
+        animation: {
+          ...prevOptions.animation,
+          duration: newConfig.animation.duration,
+          easing: newConfig.animation.type,
+          delay: newConfig.animation.delay,
+        },
+        elements: {
+          ...prevOptions.elements,
+          line: {
+            ...prevOptions.elements?.line,
+            tension: newConfig.line.tension,
+            borderWidth: newConfig.line.borderWidth,
+            borderColor: newConfig.line.borderColor,
+            fill: newConfig.line.fill,
+            // Line segment styling
+            segment: newConfig.line.segment.enabled ? {
+              borderColor: newConfig.line.segment.borderColor,
+              borderWidth: newConfig.line.segment.borderWidth,
+            } : undefined,
+            // Line style (dashed, dotted)
+            borderDash: newConfig.line.style === LineStyleEnum.DASHED ? [5, 5] : 
+                        newConfig.line.style === LineStyleEnum.DOTTED ? [2, 2] : 
+                        undefined,
+          },
+          point: {
+            ...prevOptions.elements?.point,
+            radius: newConfig.point.radius,
+            hoverRadius: newConfig.point.hoverRadius,
+            borderWidth: newConfig.point.borderWidth,
+            backgroundColor: newConfig.point.backgroundColor,
+            borderColor: newConfig.point.borderColor,
+            pointStyle: newConfig.point.style,
+          },
+          bar: {
+            ...prevOptions.elements?.bar,
+            borderWidth: newConfig.appearance.borderWidth,
+          },
+          arc: {
+            ...prevOptions.elements?.arc,
+            borderWidth: newConfig.appearance.borderWidth,
+          }
+        },
+      };
+
+      return newOptions;
+    });
+    
+    // If we have a chart instance, update it
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.update();
+    }
+  }, []);
 
   const updateChartOptions = useCallback(
     () => {
@@ -267,6 +398,63 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     };
   }, [destroyChart]);
 
+  // Add a function to create HTML legend
+  const setupHtmlLegend = (chart: ChartJS<ChartType, unknown[], unknown>) => {
+    const legendContainer = document.getElementById('html-legend-container');
+    if (!legendContainer) return;
+    
+    // Clear previous legend
+    legendContainer.innerHTML = '';
+    
+    // Create new legend items
+    const ul = document.createElement('ul');
+    ul.style.display = 'flex';
+    ul.style.flexWrap = 'wrap';
+    ul.style.margin = '0';
+    ul.style.padding = '0';
+    
+    // Get datasets from chart
+    const datasets = chart.data.datasets;
+    const labels = chart.data.labels || [];
+    
+    if (datasets) {
+      datasets.forEach((dataset, datasetIndex) => {
+        const li = document.createElement('li');
+        li.style.display = 'inline-flex';
+        li.style.alignItems = 'center';
+        li.style.margin = '0 10px 5px 0';
+        li.style.cursor = 'pointer';
+        
+        const boxSpan = document.createElement('span');
+        boxSpan.style.width = '20px';
+        boxSpan.style.height = '20px';
+        boxSpan.style.marginRight = '10px';
+        boxSpan.style.backgroundColor = 
+          Array.isArray(dataset.backgroundColor) 
+            ? dataset.backgroundColor[datasetIndex % dataset.backgroundColor.length] as string
+            : dataset.backgroundColor as string;
+        boxSpan.style.borderRadius = '3px';
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = String(dataset.label || labels[datasetIndex] || `Dataset ${datasetIndex}`);
+        
+        li.appendChild(boxSpan);
+        li.appendChild(textSpan);
+        
+        // Add click handler to toggle visibility
+        li.onclick = () => {
+          const meta = chart.getDatasetMeta(datasetIndex);
+          meta.hidden = meta.hidden === null ? !dataset.hidden : !meta.hidden;
+          chart.update();
+        };
+        
+        ul.appendChild(li);
+      });
+    }
+    
+    legendContainer.appendChild(ul);
+  };
+
   const renderChart = useCallback(() => {
     if (!chartRef.current) return;
 
@@ -319,6 +507,22 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       ...chartOptions,
       plugins: {
         ...chartOptions.plugins,
+        dragData: {
+          round: config.plugins.dragData.round,
+          showTooltip: true,
+          onDragStart: function(e: MouseEvent, datasetIndex: number, index: number, value: number) {
+            // You can add custom logic here
+            console.log('Drag started:', { datasetIndex, index, value });
+          },
+          onDrag: function(e: MouseEvent, datasetIndex: number, index: number, value: number) {
+            // You can add custom logic here
+            console.log('Dragging:', { datasetIndex, index, value });
+          },
+          onDragEnd: function(e: MouseEvent, datasetIndex: number, index: number, value: number) {
+            // You can add custom logic here
+            console.log('Drag ended:', { datasetIndex, index, value });
+          },
+        },
         legend: {
           ...chartOptions.plugins?.legend,
           labels: {
@@ -329,6 +533,9 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         title: {
           ...chartOptions.plugins?.title,
           color: textColor,
+          font: {
+            family: fontFamily,
+          }
         }
       },
       scales: chartType !== ChartTypeEnum.PIE && 
@@ -361,7 +568,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
               display: true,
               text: selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
               font: {
-                family: fontFamily,
                 size: fontSize,
               }
             },
@@ -371,7 +577,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             },
             ticks: {
               font: {
-                family: fontFamily,
                 size: fontSize,
               },
               color: textColor,
@@ -381,13 +586,42 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       } : undefined
     } as ChartOptions<ChartType>;
 
+    // Apply color scheme if using predefined colors
+    if (!config.appearance.useCustomColors) {
+      const selectedScheme = colorSchemes.find(scheme => scheme.id === config.appearance.colorScheme);
+      if (selectedScheme && currentData.datasets) {
+        // Apply colors from the scheme to datasets
+        currentData.datasets.forEach((dataset, index) => {
+          const colorIndex = index % selectedScheme.colors.length;
+          if (dataset) {
+            if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
+              // For pie/doughnut charts, set array of background colors
+              dataset.backgroundColor = selectedScheme.colors;
+              dataset.borderColor = selectedScheme.colors;
+            } else {
+              // For other chart types, set single color per dataset
+              dataset.backgroundColor = selectedScheme.colors[colorIndex];
+              dataset.borderColor = selectedScheme.colors[colorIndex];
+            }
+          }
+        });
+      }
+    }
+
     // Создаем график
     chartInstanceRef.current = new ChartJS(ctx, {
       data: currentData,
       type: chartType as ChartType,
       options: options
     });
-  }, [destroyChart, isDarkMode, selectedChartType, customData, chartOptions, selectedDataset, fontFamily, fontSize]);
+
+    // Setup HTML legend if enabled
+    if (config.legend.useHtmlLegend && chartInstanceRef.current) {
+      setupHtmlLegend(chartInstanceRef.current);
+    }
+
+    chartInstanceRef.current.update();
+  }, [destroyChart, isDarkMode, selectedChartType, customData, chartOptions, config.plugins.dragData.round, config.appearance.useCustomColors, config.appearance.colorScheme, config.legend.useHtmlLegend, fontFamily, selectedDataset, fontSize]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -490,184 +724,35 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             >
               <canvas ref={chartRef} />
             </div>
+            {/* HTML Legend Container */}
+            <div id="html-legend-container" className="mt-4 flex flex-wrap justify-center" />
           </Col>
       
           <Col span={24}>
-            <Space direction="horizontal" align="start" wrap style={{ width: "100%", justifyContent: "space-between" }}>
-              {/* Группа выбора данных */}
-              <Card 
-                size="small" 
-                title={<span className="flex items-center"><DotChartOutlined className="mr-2" /> Data</span>}
-                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
-                style={{ 
-                  borderRadius: "8px", 
-                  border: "1px solid #c4b5fd",
-                }}
-                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
-              >
-                <Space direction="vertical" className="w-full">
-                  <div>
-                    <Text>Dataset</Text>
-                    <Select
-                      style={{ width: "100%" }}
-                      value={selectedDataset}
-                      onChange={(value) => setSelectedDataset(value)}
-                    >
-                      {Object.values(DatasetEnum).map((dataset) => (
-                        <Option key={dataset} value={dataset}>
-                          {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace("_", " ")}
-                        </Option>
-                      ))}
-                    </Select>
-                  </div>
-      
-                  <div>
-                    <Text>Chart Type</Text>
-                    <Select
-                      style={{ width: "100%" }}
-                      value={selectedChartType}
-                      onChange={(value) => setSelectedChartType(value)}
-                    >
-                      {compatibleChartTypes.map((chartType) => (
-                        <Option key={chartType} value={chartType}>
-                          {chartType.charAt(0).toUpperCase() + chartType.slice(1).replace(/([A-Z])/g, " $1").trim()}
-                        </Option>
-                      ))}
-                    </Select>
-                  </div>
-                </Space>
-              </Card>
-      
-              {/* Группа настроек внешнего вида */}
-              <Card 
-                size="small" 
-                title={<span className="flex items-center"><i className="mr-2">🎨</i> Appearance</span>}
-                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
-                style={{ 
-                  borderRadius: "8px", 
-                  border: "1px solid #c4b5fd",
-                }}
-                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
-              >
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <div>
-                    <Text>Border Width: {borderWidth}px</Text>
-                    <Slider
-                      min={0}
-                      max={5}
-                      value={borderWidth}
-                      onChange={(value) => setBorderWidth(value)}
-                    />
-                  </div>
-                </Space>
-              </Card>
-      
-              {/* Группа настроек легенды и заголовка */}
-              <Card 
-                size="small" 
-                title={<span className="flex items-center"><i className="mr-2">📝</i> Legend & Title</span>}
-                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
-                style={{ 
-                  borderRadius: "8px", 
-                  border: "1px solid #c4b5fd",
-                }}
-                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
-              >
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <div>
-                    <Text>Show Legend</Text>
-                    <Switch
-                      checked={showLegend}
-                      onChange={(checked) => setShowLegend(checked)}
-                      style={{ marginLeft: 8 }}
-                    />
-                  </div>
-      
-                  {showLegend && (
-                    <div>
-                      <Text>Legend Position</Text>
-                      <Select
-                        style={{ width: "100%" }}
-                        value={legendPosition}
-                        onChange={(value) => setLegendPosition(value)}
-                      >
-                        {Object.values(LegendPositionEnum).map((position) => (
-                          <Option key={position} value={position}>{position}</Option>
-                        ))}
-                      </Select>
-                    </div>
-                  )}
-      
-                  <div>
-                    <Text>Show Title</Text>
-                    <Switch
-                      checked={showTitle}
-                      onChange={(checked) => setShowTitle(checked)}
-                      style={{ marginLeft: 8 }}
-                    />
-                  </div>
-      
-                  {showTitle && (
-                    <div>
-                      <Text>Chart Title</Text>
-                      <Input
-                        value={chartTitle}
-                        onChange={(e) => setChartTitle(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </Space>
-              </Card>
-      
-              {/* Группа настроек анимации */}
-              <Card 
-                size="small" 
-                title={<span className="flex items-center"><i className="mr-2">✨</i> Animation & Layout</span>}
-                className="min-w-[200px] hover:shadow-md transition-shadow duration-300"
-                style={{ 
-                  borderRadius: "8px", 
-                  border: "1px solid #c4b5fd",
-                }}
-                styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
-              >
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <div>
-                    <Text>Animation Duration: {animationDuration}ms</Text>
-                    <Slider
-                      min={0}
-                      max={2000}
-                      step={100}
-                      value={animationDuration}
-                      onChange={(value) => setAnimationDuration(value)}
-                    />
-                  </div>
-      
-                  <div>
-                    <Text>Aspect Ratio: {aspectRatio}</Text>
-                    <Slider
-                      min={1}
-                      max={4}
-                      step={0.1}
-                      value={aspectRatio}
-                      onChange={(value) => setAspectRatio(value)}
-                    />
-                  </div>
-      
-                  {(selectedChartType === ChartTypeEnum.LINE) && (
-                    <div>
-                      <Text>Line Tension: {tension}</Text>
-                      <Slider
-                        min={0}
-                        max={1}
-                        step={0.1}
-                        value={tension}
-                        onChange={(value) => setTension(value)}
-                      />
-                    </div>
-                  )}
-                </Space>
-              </Card>
-            </Space>
+            <ChartControls 
+              onConfigChange={handleChartConfigChange}
+              selectedDataset={selectedDataset}
+              setSelectedDataset={setSelectedDataset}
+              selectedChartType={selectedChartType}
+              setSelectedChartType={setSelectedChartType}
+              compatibleChartTypes={compatibleChartTypes}
+              showLegend={showLegend}
+              setShowLegend={setShowLegend}
+              legendPosition={legendPosition}
+              setLegendPosition={setLegendPosition}
+              chartTitle={chartTitle}
+              setChartTitle={setChartTitle}
+              showTitle={showTitle}
+              setShowTitle={setShowTitle}
+              aspectRatio={aspectRatio}
+              setAspectRatio={setAspectRatio}
+              animationDuration={animationDuration}
+              setAnimationDuration={setAnimationDuration}
+              borderWidth={borderWidth}
+              setBorderWidth={setBorderWidth}
+              tension={tension}
+              setTension={setTension}
+            />
           </Col>
         </Row>
       </Card>

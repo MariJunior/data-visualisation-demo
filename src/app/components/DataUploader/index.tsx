@@ -1,7 +1,7 @@
 import { ChartDataPointType, ChartDataType } from "@/app/types/chart";
 import { generateRandomColor } from "@/app/utils/generateRandomColor";
 import { FileExcelOutlined, FileTextOutlined, UploadOutlined } from "@ant-design/icons";
-import { Button, Card, Input, message, Space, Tabs, Upload } from "antd";
+import { Button, Card, Input, message, Space, Tabs, TabsProps, Upload } from "antd";
 import { RcFile } from "antd/es/upload";
 import { ChartDataset, ChartType } from "chart.js";
 import { FC, useState } from "react";
@@ -36,7 +36,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
-        const parsedData = JSON.parse(content);
+        const parsedData = JSON.parse(content) as ChartDataType;
         onDataLoaded(parsedData);
         message.success("JSON файл успешно загружен");
       } catch (error) {
@@ -124,7 +124,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
   };
 
   // Определяем элементы вкладок в новом формате
-  const tabItems = [
+  const tabItems: TabsProps["items"] = [
     {
       key: "json-text",
       label: (
