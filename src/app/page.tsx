@@ -3,6 +3,7 @@
 import { Alert, Select, Slider, Typography } from "antd";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { ChartDataType } from "./types/chart";
 
 const { Title } = Typography;
 
@@ -34,9 +35,9 @@ export default function Home() {
   const [library, setLibrary] = useState("chartjs");
   const [fontSize, setFontSize] = useState(14);
   const [fontFamily, setFontFamily] = useState("JetBrains Mono");
-  const [customData, setCustomData] = useState(null);
+  const [customData, setCustomData] = useState<ChartDataType | null>(null);
 
-  const handleDataLoaded = (data: any) => {
+  const handleDataLoaded = (data: ChartDataType) => {
     setCustomData(data);
   };
 

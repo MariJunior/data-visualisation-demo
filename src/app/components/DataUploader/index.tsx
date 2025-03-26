@@ -1,16 +1,17 @@
+import { ChartDataPointType, ChartDataType } from "@/app/types/chart";
 import { generateRandomColor } from "@/app/utils/generateRandomColor";
 import { FileExcelOutlined, FileTextOutlined, UploadOutlined } from "@ant-design/icons";
 import { Button, Card, Input, message, Space, Tabs, Upload } from "antd";
 import { RcFile } from "antd/es/upload";
+import { ChartDataset, ChartType } from "chart.js";
 import { FC, useState } from "react";
 import * as XLSX from "xlsx";
 
-interface DataUploaderProps {
-  onDataLoaded: (data: any) => void;
-}
-
-const { TabPane } = Tabs;
 const { TextArea } = Input;
+
+interface DataUploaderProps {
+  onDataLoaded: (data: ChartDataType) => void;
+}
 
 export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
   const [jsonText, setJsonText] = useState("");
@@ -19,7 +20,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
   // Обработка JSON из текстового поля
   const handleJsonSubmit = () => {
     try {
-      const parsedData = JSON.parse(jsonText);
+      const parsedData = JSON.parse(jsonText) as ChartDataType;
       onDataLoaded(parsedData);
       message.success("JSON данные успешно загружены");
     } catch (error) {
@@ -69,7 +70,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
         const worksheet = workbook.Sheets[firstSheetName];
         
         // Конвертируем в JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
         
         // Преобразуем данные в формат, подходящий для Chart.js
         const processedData = processSpreadsheetData(jsonData);
@@ -93,23 +94,23 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
   };
 
   // Преобразование данных из таблицы в формат для Chart.js
-  const processSpreadsheetData = (data: any[]) => {
+  const processSpreadsheetData = (data: unknown[][]): ChartDataType => {
     if (!data || data.length < 2) {
       throw new Error("Недостаточно данных в таблице");
     }
 
-    const headers = data[0];
-    const values = data.slice(1);
+    const headers = data[0] as string[];
+    const values = data.slice(1) as ChartDataPointType[][];
 
     // Предполагаем, что первый столбец - это метки (labels)
-    const labels = values.map(row => row[0]);
+    const labels = values.map(row => String(row[0]));
     
     // Остальные столбцы - это наборы данных
-    const datasets = [];
+    const datasets: ChartDataset<ChartType, ChartDataPointType[]>[] = [];
     
     for (let i = 1; i < headers.length; i++) {
       datasets.push({
-        label: headers[i] || `Dataset ${i}`,
+        label: String(headers[i] || `Dataset ${i}`),
         data: values.map(row => row[i] || 0),
         backgroundColor: generateRandomColor(),
         borderColor: generateRandomColor(),
@@ -153,6 +154,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
             type="primary" 
             onClick={handleJsonSubmit}
             disabled={!jsonText.trim()}
+            loading={loading}
           >
             Загрузить JSON
           </Button>
@@ -172,6 +174,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
           accept=".json"
           beforeUpload={handleJsonFileUpload}
           showUploadList={false}
+          disabled={loading}
         >
           <p className="ant-upload-drag-icon">
             <UploadOutlined />
@@ -196,6 +199,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
           accept=".xlsx,.xls,.csv"
           beforeUpload={handleSpreadsheetUpload}
           showUploadList={false}
+          disabled={loading}
         >
           <p className="ant-upload-drag-icon">
             <FileExcelOutlined />

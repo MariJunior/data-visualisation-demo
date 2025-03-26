@@ -1,3 +1,4 @@
+import { ChartDataType } from "@/app/types/chart";
 import { ReactNode } from "react";
 
 // Enum для типов графиков
@@ -46,6 +47,6 @@ export interface TabItem {
 export interface ChartJSComponentProps {
   fontSize?: number;
   fontFamily?: string;
-  customData?: any; // Добавляем поддержку пользовательских данных
+  customData?: ChartDataType | null; // Добавляем поддержку пользовательских данных
 };
 

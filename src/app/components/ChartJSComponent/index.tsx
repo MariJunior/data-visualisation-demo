@@ -1,4 +1,5 @@
 import { useIsDarkMode } from "@/app/hooks/useIsDarkMode";
+import { ChartDataType } from "@/app/types/chart";
 import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from "@ant-design/icons";
 import { Badge, Card, Col, Input, Row, Select, Slider, Space, Switch, Typography } from "antd";
 import {
@@ -7,11 +8,9 @@ import {
   BarElement,
   BubbleController,
   CategoryScale,
-  ChartData,
   Chart as ChartJS,
   ChartOptions,
   ChartType,
-  ChartTypeRegistry,
   DoughnutController,
   Legend,
   LinearScale,
@@ -24,10 +23,9 @@ import {
   RadialLinearScale,
   ScatterController,
   Title,
-  Tooltip,
+  Tooltip
 } from "chart.js";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
-import DataUploader from "../DataUploader";
 import { mockDatasets } from "./datasets";
 import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
 
@@ -131,7 +129,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   const [compatibleChartTypes, setCompatibleChartTypes] = useState<ChartTypeEnum[]>([]);
   const [chartOptions, setChartOptions] = useState<ChartOptions<ChartType>>(defaultOptions);
   // Добавим состояние для хранения пользовательских данных
-  const [userData, setUserData] = useState<any>(null);
   
   const [showLegend, setShowLegend] = useState(true);
   const [legendPosition, setLegendPosition] = useState<LegendPositionEnum>(LegendPositionEnum.TOP);
@@ -282,38 +279,36 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     const gridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
     const textColor = isDarkMode ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)";
 
-    let currentData: ChartData<ChartType>;
+    let currentData: ChartDataType;
     let chartType = selectedChartType;
     
-    if (userData) {
-      currentData = userData;
-    } else if (customData) {
+    if (customData) {
       currentData = customData;
     } else {
       // Определяем, какой датасет и тип графика использовать
       if (selectedChartType === ChartTypeEnum.BUBBLE) {
-        currentData = mockDatasets.bubbleData as ChartData<ChartType>;
+        currentData = mockDatasets.bubbleData as ChartDataType;
       } else if (selectedChartType === ChartTypeEnum.SCATTER) {
-        currentData = mockDatasets.scatterData as ChartData<ChartType>;
+        currentData = mockDatasets.scatterData as ChartDataType;
       } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
         // Для демографических данных лучше использовать круговые диаграммы
-        currentData = mockDatasets.demographics as ChartData<ChartType>;
+        currentData = mockDatasets.demographics as ChartDataType;
         if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
           chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
         }
       } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
-        currentData = mockDatasets.performance as ChartData<ChartType>;
+        currentData = mockDatasets.performance as ChartDataType;
         if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
           chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
         }
       } else if (selectedDataset === DatasetEnum.TIME_DATA) {
-        currentData = mockDatasets.timeData as ChartData<ChartType>;
+        currentData = mockDatasets.timeData as ChartDataType;
         if (selectedChartType !== ChartTypeEnum.LINE) {
           chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
         }
       } else {
         // Для остальных датасетов используем выбранный тип графика
-        currentData = mockDatasets[selectedDataset] as ChartData<ChartType>;
+        currentData = mockDatasets[selectedDataset] as ChartDataType;
       }
     }
 
@@ -415,16 +410,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     // Создаем график
     chartInstanceRef.current = new ChartJS(ctx, {
       data: currentData,
-      type: chartType as keyof ChartTypeRegistry,
+      type: chartType as ChartType,
       options: options
     });
-  }, [destroyChart, selectedChartType, userData, customData, chartOptions, selectedDataset, fontFamily, fontSize]);
-
-  // Добавим функцию для загрузки пользовательских данных
-  const handleDataLoaded = (data: any) => {
-    setUserData(data);
-  };
-
+  }, [destroyChart, isDarkMode, selectedChartType, customData, chartOptions, selectedDataset, fontFamily, fontSize]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -434,7 +423,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     }, 0);
     
     return () => clearTimeout(timer);
-  }, [selectedDataset, selectedChartType, chartOptions, renderChart, userData]);
+  }, [selectedDataset, selectedChartType, chartOptions, renderChart]);
 
   // Добавим эффект для обновления графика при изменении шрифта
   useEffect(() => {
@@ -485,8 +474,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         shadow-lg
       "
     >
-      <DataUploader onDataLoaded={handleDataLoaded} />
-
       <Card 
         className="chart-container overflow-hidden border-0"
         style={{ 
