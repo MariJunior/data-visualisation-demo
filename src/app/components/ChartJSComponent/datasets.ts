@@ -65,21 +65,36 @@ export const mockDatasets: DatasetMocksTypes = {
     datasets: [
       {
         label: "Product A",
-        data: generateRandomData(7, 65, 95),
-        borderColor: "rgb(255, 99, 132)",
-        backgroundColor: "rgba(255, 99, 132, 0.5)",
+        data: generateRandomData(7, 5, 95),
+        borderColor: "rgba(255, 99, 132, 1)",
+        backgroundColor: "rgba(255, 99, 132, 0.2)",
+        borderWidth: 2,
+        pointBackgroundColor: "rgba(255, 99, 132, 1)",
+        pointRadius: 4,
+        fill: true,
+        tension: 0.4
       },
       {
         label: "Product B",
-        data: generateRandomData(7, 25, 75),
-        borderColor: "rgb(75, 192, 192)",
-        backgroundColor: "rgba(75, 192, 192, 0.5)",
+        data: generateRandomData(7, 15, 75),
+        borderColor: "rgba(75, 192, 192, 1)",
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
+        borderWidth: 2,
+        pointBackgroundColor: "rgba(75, 192, 192, 1)",
+        pointRadius: 4,
+        fill: true,
+        tension: 0.4
       },
       {
         label: "Product C",
-        data: generateRandomData(7, 15, 80),
-        borderColor: "rgb(53, 162, 235)",
-        backgroundColor: "rgba(53, 162, 235, 0.5)",
+        data: generateRandomData(7, 35, 80),
+        borderColor: "rgba(53, 162, 235, 1)",
+        backgroundColor: "rgba(53, 162, 235, 0.2)",
+        borderWidth: 2,
+        pointBackgroundColor: "rgba(53, 162, 235, 1)",
+        pointRadius: 4,
+        fill: true,
+        tension: 0.4
       }
     ],
   },

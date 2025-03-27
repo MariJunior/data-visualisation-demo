@@ -1,5 +1,6 @@
 import { DotChartOutlined } from "@ant-design/icons";
-import { Card, Input, Select, Slider, Space, Switch, Typography } from "antd";
+import { Card, ColorPicker, Input, Select, Slider, Space, Switch, Typography } from "antd";
+import { Color, EasingFunction } from "chart.js";
 import { FC } from "react";
 import { ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "../types";
 
@@ -18,16 +19,36 @@ export type ChartControlsBasicProps = {
   setShowLegend: (value: boolean) => void;
   legendPosition: LegendPositionEnum;
   setLegendPosition: (value: LegendPositionEnum) => void;
+  legendColor: Color;
+  setLegendColor: (value: Color) => void;
   showTitle: boolean;
   setShowTitle: (value: boolean) => void;
   chartTitle: string;
   setChartTitle: (value: string) => void;
+  titleColor: Color;
+  setTitleColor: (value: Color) => void;
+  showSubtitle: boolean;
+  setShowSubtitle: (value: boolean) => void;
+  subtitle: string;
+  setSubtitle: (value: string) => void;
+  subtitleColor: Color;
+  setSubtitleColor: (value: Color) => void;
   animationDuration: number;
   setAnimationDuration: (value: number) => void;
+  animationType: EasingFunction;
+  setAnimationType: (value: EasingFunction) => void;
+  animationDelay: number;
+  setAnimationDelay: (value: number) => void;
+  animationPlaying: string;
+  setAnimationPlaying: (value: string) => void;
   aspectRatio: number;
   setAspectRatio: (value: number) => void;
   tension: number;
   setTension: (value: number) => void;
+  colorScheme: string;
+  setColorScheme: (value: string) => void;
+  colorSchemes: Array<{ id: string; name: string; colors: string[] }>;
+  easingOptions: EasingFunction[];
 };
 
 export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
@@ -42,16 +63,36 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
   setShowLegend,
   legendPosition,
   setLegendPosition,
+  legendColor,
+  setLegendColor,
   showTitle,
   setShowTitle,
   chartTitle,
   setChartTitle,
+  titleColor,
+  setTitleColor,
+  showSubtitle,
+  setShowSubtitle,
+  subtitle,
+  setSubtitle,
+  subtitleColor,
+  setSubtitleColor,
   animationDuration,
   setAnimationDuration,
+  animationType,
+  setAnimationType,
+  animationDelay,
+  setAnimationDelay,
+  animationPlaying,
+  setAnimationPlaying,
   aspectRatio,
   setAspectRatio,
   tension,
   setTension,
+  colorScheme,
+  setColorScheme,
+  colorSchemes,
+  easingOptions,
 }) => {
   return (
     <Space direction="horizontal" align="start" wrap style={{ width: "100%", justifyContent: "space-between" }}>
@@ -120,6 +161,21 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
               onChange={(value) => setBorderWidth(value)}
             />
           </div>
+
+          <div>
+            <Text>Color Scheme</Text>
+            <Select
+              style={{ width: "100%" }}
+              value={colorScheme}
+              onChange={(value) => setColorScheme(value)}
+            >
+              {colorSchemes.map((scheme) => (
+                <Option key={scheme.id} value={scheme.id}>
+                  {scheme.name}
+                </Option>
+              ))}
+            </Select>
+          </div>
         </Space>
       </Card>
 
@@ -145,18 +201,32 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
           </div>
 
           {showLegend && (
-            <div>
-              <Text>Legend Position</Text>
-              <Select
-                style={{ width: "100%" }}
-                value={legendPosition}
-                onChange={(value) => setLegendPosition(value)}
-              >
-                {Object.values(LegendPositionEnum).map((position) => (
-                  <Option key={position} value={position}>{position}</Option>
-                ))}
-              </Select>
-            </div>
+            <>
+              <div>
+                <Text>Legend Position</Text>
+                <Select
+                  style={{ width: "100%" }}
+                  value={legendPosition}
+                  onChange={(value) => setLegendPosition(value)}
+                >
+                  {Object.values(LegendPositionEnum).map((position) => (
+                    <Option key={position} value={position}>{position}</Option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Text>Legend Color</Text>
+                <ColorPicker
+                  value={legendColor as string}
+                  onChange={(color) => {
+                    const hexColor = color.toHexString();
+                    console.log(`Цвет легенды: ${hexColor}`);
+                    setLegendColor(hexColor);
+                  }}
+                />
+              </div>
+            </>
           )}
 
           <div>
@@ -169,13 +239,66 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
           </div>
 
           {showTitle && (
-            <div>
-              <Text>Chart Title</Text>
-              <Input
-                value={chartTitle}
-                onChange={(e) => setChartTitle(e.target.value)}
-              />
-            </div>
+            <>
+              <div>
+                <Text>Chart Title</Text>
+                <Input
+                  value={chartTitle}
+                  onChange={(e) => setChartTitle(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Text>Title Color</Text>
+                <ColorPicker
+                  value={titleColor as string}
+                  onChange={(color) => {
+                    const hexColor = color.toHexString();
+                    console.log(`Цвет заголовка: ${hexColor}`);
+                    setTitleColor(hexColor);
+                  }}
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <Text>Show Subtitle</Text>
+            <Switch
+              checked={showSubtitle}
+              onChange={(checked) => {
+                console.log(`Отображение подзаголовка: ${checked}`);
+                setShowSubtitle(checked);
+              }}
+              style={{ marginLeft: 8 }}
+            />
+          </div>
+
+          {showSubtitle && (
+            <>
+              <div>
+                <Text>Chart Subtitle</Text>
+                <Input
+                  value={subtitle}
+                  onChange={(e) => {
+                    console.log(`Подзаголовок графика: ${e.target.value}`);
+                    setSubtitle(e.target.value);
+                  }}
+                />
+              </div>
+              
+              <div>
+                <Text>Subtitle Color</Text>
+                <ColorPicker
+                  value={subtitleColor as string}
+                  onChange={(color) => {
+                    const hexColor = color.toHexString();
+                    console.log(`Цвет подзаголовка: ${hexColor}`);
+                    setSubtitleColor(hexColor);
+                  }}
+                />
+              </div>
+            </>
           )}
         </Space>
       </Card>
@@ -193,6 +316,19 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
       >
         <Space direction="vertical" style={{ width: "100%" }}>
           <div>
+            <Text>Animation Playing</Text>
+            <Select
+              style={{ width: "100%" }}
+              value={animationPlaying}
+              onChange={(value) => setAnimationPlaying(value)}
+            >
+              <Option key="disabled" value="disabled">Disabled</Option>
+              <Option key="once" value="once">Once</Option>
+              <Option key="loop" value="loop">Loop</Option>
+            </Select>
+          </div>
+
+          <div>
             <Text>Animation Duration: {animationDuration}ms</Text>
             <Slider
               min={0}
@@ -200,6 +336,32 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
               step={100}
               value={animationDuration}
               onChange={(value) => setAnimationDuration(value)}
+            />
+          </div>
+
+          <div>
+            <Text>Animation Type</Text>
+            <Select
+              style={{ width: "100%" }}
+              value={animationType}
+              onChange={(value) => setAnimationType(value)}
+            >
+              {easingOptions.map((type) => (
+                <Option key={type} value={type}>
+                  {type.charAt(0).toUpperCase() + type.slice(1).replace(/([A-Z])/g, " $1").trim()}
+                </Option>
+              ))}
+            </Select>
+          </div>
+          
+          <div>
+            <Text>Animation Delay: {animationDelay}ms</Text>
+            <Slider
+              min={0}
+              max={1000}
+              step={50}
+              value={animationDelay}
+              onChange={(value) => setAnimationDelay(value)}
             />
           </div>
 
