@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Select, Slider, Typography } from "antd";
+import { Select, Slider, Typography } from "antd";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { ChartDataType } from "./types/chart";
@@ -34,7 +34,8 @@ const fontOptions = [
 export default function Home() {
   const [library, setLibrary] = useState("chartjs");
   const [fontSize, setFontSize] = useState(14);
-  const [fontFamily, setFontFamily] = useState("JetBrains Mono");
+  const [fontFamilyVariable, setFontFamilyVariable] = useState("var(--font-jet-brains-mono), monospace");
+  const [fontFamilyName, setFontFamilyName] = useState("JetBrains Mono");
   const [customData, setCustomData] = useState<ChartDataType | null>(null);
 
   const handleDataLoaded = (data: ChartDataType) => {
@@ -46,7 +47,7 @@ export default function Home() {
       <Title 
         level={1} 
         className="text-center mb-6"
-        style={{ fontFamily: fontFamily }}
+        style={{ fontFamily: fontFamilyVariable }}
       >
         Data Visualization Demo
       </Title>
@@ -68,8 +69,11 @@ export default function Home() {
         <div>
           <label className="block mb-2">Font Family:</label>
           <Select
-            value={fontFamily} 
-            onChange={setFontFamily}
+            value={fontFamilyVariable} 
+            onChange={(value) => {
+              setFontFamilyVariable(value);
+              setFontFamilyName(fontOptions.find(font => font.value === value)?.label || "Unknown");
+            }}
             style={{ width: 200 }}
           >
             {fontOptions.map(font => (
@@ -91,20 +95,13 @@ export default function Home() {
         </div>
       </div>
 
-      <Alert
-        message={"К сожалению, сейчас шрифт обновляется на графике только при обновлении страницы"}
-        type="warning"
-        className="mt-2"
-        showIcon
-      />
-
       <div className="mt-6">
         {library === "chartjs" && (
           <>
             <DataUploader onDataLoaded={handleDataLoaded} />
             <ChartJSComponent 
               fontSize={fontSize} 
-              fontFamily={fontFamily} 
+              fontFamily={fontFamilyName} 
               customData={customData}
             />
           </>
