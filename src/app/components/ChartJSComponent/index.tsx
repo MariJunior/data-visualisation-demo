@@ -462,11 +462,11 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           radarDataset.pointHoverRadius = 5;
           radarDataset.tension = 0.4;
           radarDataset.spanGaps = true;
-          radarDataset.segment = {
-            borderColor: color,
-            backgroundColor: color + "33",
-            borderWidth: state.appearance.borderWidth,
-          };
+          // radarDataset.segment = {
+          //   borderColor: color,
+          //   backgroundColor: color + "33",
+          //   borderWidth: state.appearance.borderWidth,
+          // };
         } else if (chartType === ChartTypeEnum.POLAR_AREA) {
           // Для полярных областей используем массив цветов
           dataset.backgroundColor = schemeColors.map(c => c + "77");
