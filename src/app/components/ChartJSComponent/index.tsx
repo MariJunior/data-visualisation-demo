@@ -12,10 +12,8 @@ import {
   Chart as ChartJS,
   ChartOptions,
   ChartType,
-  Color,
   Colors,
   DoughnutController,
-  EasingFunction,
   Legend,
   LinearScale,
   LineController,
@@ -31,10 +29,12 @@ import {
   Title,
   Tooltip
 } from "chart.js";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useReducer, useRef } from "react";
+import { chartReducer, initialChartState } from "./chartReducer";
 import ChartControls from "./components/ChartControls";
+import { colorSchemes, easingOptions } from "./constants";
 import { mockDatasets } from "./datasets";
-import { ChartJSComponentProps, ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "./types";
+import { ChartActionTypes, ChartJSComponentProps, ChartTypeEnum, DatasetEnum } from "./types";
 
 const { Title: AntTitle } = Typography;
 
@@ -68,28 +68,6 @@ ChartJS.register(
   Colors
 );
 
-// TODO: Вынести моки и константы в отдельный файл
-export const colorSchemes = [
-  { id: "default", name: "Default", colors: ["#36a2eb", "#ff6384", "#4bc0c0", "#ff9f40", "#9966ff", "#ffcd56"] },
-  { id: "pastel", name: "Pastel", colors: ["#f1c0e8", "#cfbaf0", "#a3c4f3", "#90dbf4", "#8eecf5", "#98f5e1"] },
-  { id: "vibrant", name: "Vibrant", colors: ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"] },
-  { id: "monochrome", name: "Monochrome", colors: ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"] },
-  { id: "earth", name: "Earth Tones", colors: ["#5d4037", "#795548", "#8d6e63", "#a1887f", "#bcaaa4", "#d7ccc8"] },
-];
-
-export const easingOptions: EasingFunction[] = [
-  "linear", "easeInQuad", "easeOutQuad", "easeInOutQuad",
-  "easeInCubic", "easeOutCubic", "easeInOutCubic",
-  "easeInQuart", "easeOutQuart", "easeInOutQuart",
-  "easeInQuint", "easeOutQuint", "easeInOutQuint",
-  "easeInSine", "easeOutSine", "easeInOutSine",
-  "easeInExpo", "easeOutExpo", "easeInOutExpo",
-  "easeInCirc", "easeOutCirc", "easeInOutCirc",
-  "easeInElastic", "easeOutElastic", "easeInOutElastic",
-  "easeInBack", "easeOutBack", "easeInOutBack",
-  "easeInBounce", "easeOutBounce", "easeInOutBounce",
-] as const;
-
 export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum[] => {
   switch (datasetType) {
     case DatasetEnum.SALES:
@@ -111,71 +89,12 @@ export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum
   }
 };
 
-const defaultOptions: ChartOptions<ChartType> = {
-  responsive: true,
-  aspectRatio: 2,
-  animation: {
-    duration: 1000,
-  },
-  elements: {
-    line: {
-      tension: 0.4,
-      borderWidth: 1,
-    },
-    point: {
-      radius: 4,
-      borderWidth: 1,
-    },
-    bar: {
-      borderWidth: 1,
-    },
-    arc: {
-      borderWidth: 1,
-    }
-  },
-  plugins: {
-    legend: {
-      display: true,
-      position: LegendPositionEnum.TOP,
-    },
-    title: {
-      display: true,
-      text: "Chart.js Demo",
-      font: {
-        size: 16,
-        weight: "bold",
-      },
-    },
-  },
-};
-
 export const ChartJSComponent: FC<ChartJSComponentProps> = ({ 
   fontSize = 14,
   fontFamily = "Arial",
   customData = null,
 }) => {
-  // TODO: Сгруппировать стейты и дотипизировать
-  const [selectedDataset, setSelectedDataset] = useState<DatasetEnum>(DatasetEnum.SALES);
-  const [selectedChartType, setSelectedChartType] = useState<ChartTypeEnum>(ChartTypeEnum.LINE);
-  const [compatibleChartTypes, setCompatibleChartTypes] = useState<ChartTypeEnum[]>([]);
-  const [chartOptions, setChartOptions] = useState<ChartOptions<ChartType>>(defaultOptions);
-  const [colorScheme, setColorScheme] = useState<string>("default");
-  const [legendColor, setLegendColor] = useState<Color>("#000000");
-  const [titleColor, setTitleColor] = useState<Color>("#000000");
-  const [showSubtitle, setShowSubtitle] = useState(false);
-  const [subtitle, setSubtitle] = useState("Chart Subtitle");
-  const [subtitleColor, setSubtitleColor] = useState<Color>("#666666");
-  const [animationType, setAnimationType] = useState<EasingFunction>("easeInOutQuad");
-  const [animationDelay, setAnimationDelay] = useState(0);
-  const [animationPlaying, setAnimationPlaying] = useState<string>("once");  
-  const [showLegend, setShowLegend] = useState(true);
-  const [legendPosition, setLegendPosition] = useState<LegendPositionEnum>(LegendPositionEnum.TOP);
-  const [chartTitle, setChartTitle] = useState("Chart.js Demo");
-  const [showTitle, setShowTitle] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState(2);
-  const [animationDuration, setAnimationDuration] = useState(1000);
-  const [borderWidth, setBorderWidth] = useState(1);
-  const [tension, setTension] = useState(0.4);
+  const [state, dispatch] = useReducer(chartReducer, initialChartState);
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS<ChartType, unknown[], unknown> | null>(null);
@@ -184,15 +103,15 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   // Обновляем список совместимых типов графиков при изменении датасета
   useEffect(() => {
-    const chartTypes = getCompatibleChartTypes(selectedDataset);
-    setCompatibleChartTypes(chartTypes);
+    const chartTypes = getCompatibleChartTypes(state.dataConfig.selectedDataset);
+    dispatch({ type: ChartActionTypes.SET_COMPATIBLE_TYPES, payload: chartTypes });
     
     // Если текущий выбранный тип графика не совместим с новым датасетом,
     // выбираем первый доступный тип из списка совместимых
-    if (chartTypes.length > 0 && !chartTypes.includes(selectedChartType)) {
-      setSelectedChartType(chartTypes[0]);
+    if (chartTypes.length > 0 && !chartTypes.includes(state.dataConfig.selectedChartType)) {
+      dispatch({ type: ChartActionTypes.SET_CHART_TYPE, payload: chartTypes[0] });
     }
-  }, [selectedChartType, selectedDataset]);
+  }, [state.dataConfig.selectedChartType, state.dataConfig.selectedDataset]);
 
   const updateChartOptions = useCallback(
     () => {
@@ -201,78 +120,78 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         size: fontSize,
       };
 
-      setChartOptions({
+      let newOptions: ChartOptions<ChartType> = {
         responsive: true,
-        aspectRatio: aspectRatio,
+        aspectRatio: state.appearance.aspectRatio,
         animation: {
-          duration: animationDuration,
-          delay: animationDelay,
-          easing: animationType,
+          duration: state.animation.animationDuration,
+          delay: state.animation.animationDelay,
+          easing: state.animation.animationType,
         },
         font: fontConfig,
         elements: {
           line: {
-            tension: tension,
-            borderWidth: borderWidth,
+            tension: state.appearance.tension,
+            borderWidth: state.appearance.borderWidth,
           },
           point: {
             radius: 4,
-            borderWidth: borderWidth,
+            borderWidth: state.appearance.borderWidth,
           },
           bar: {
-            borderWidth: borderWidth,
+            borderWidth: state.appearance.borderWidth,
           },
           arc: {
-            borderWidth: borderWidth,
+            borderWidth: state.appearance.borderWidth,
           }
         },
         scales: {
           x: {
             ticks: {
-              font: fontConfig, // Шрифт для оси X
-              color: legendColor, // Цвет для оси X
+              font: fontConfig,
+              color: state.titleConfig.subtitleColor,
             },
             title: {
               display: true,
-              font: fontConfig, // Шрифт для заголовка оси X
-              color: legendColor, // Цвет для заголовка оси X
+              font: fontConfig,
+              color: state.titleConfig.titleColor,
             }
           },
           y: {
             ticks: {
-              font: fontConfig, // Шрифт для оси Y
-              color: legendColor, // Цвет для оси Y
+              font: fontConfig,
+              color: state.appearance.legendColor,
             },
             title: {
               display: true,
-              font: fontConfig, // Шрифт для заголовка оси Y
-              color: legendColor, // Цвет для заголовка оси Y
+              font: fontConfig,
+              color: state.appearance.legendColor,
             }
           }
         },
         plugins: {
           legend: {
-            display: showLegend,
-            position: legendPosition,
+            display: state.appearance.showLegend,
+            position: state.appearance.legendPosition,
             labels: {
               font: fontConfig,
-              color: legendColor,
+              color: state.appearance.legendColor,
             }
           },
           title: {
-            display: showTitle,
+            display: state.titleConfig.showTitle,
             font: {
               size: fontSize + 2,
               family: fontFamily,
               weight: "bold",
             },
-            text: chartTitle,
-            color: titleColor,
+            text: state.titleConfig.chartTitle,
+            color: state.titleConfig.titleColor,
           },
           subtitle: {
-            display: showSubtitle,
-            text: subtitle,
-            color: subtitleColor,
+            display: state.titleConfig.showSubtitle,
+            text: state.titleConfig.subtitle,
+            color: state.titleConfig.subtitleColor,
             font: {
               size: fontSize - 1,
               family: fontFamily,
@@ -297,11 +216,11 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             }
           }
         },
-      });
+      };
 
-      if (selectedChartType === ChartTypeEnum.RADAR) {
-        setChartOptions(prevOptions => ({
-          ...prevOptions,
+      if (state.dataConfig.selectedChartType === ChartTypeEnum.RADAR) {
+        newOptions = {
+          ...newOptions,
           scales: {
             r: {
               beginAtZero: true,
@@ -320,40 +239,20 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                 color: isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
               }
             }
-          },
-          elements: {
-            ...prevOptions.elements,
-            line: {
-              ...prevOptions.elements?.line,
-              tension: 0.1,
-              borderWidth: borderWidth,
-            }
-          },
-          plugins: {
-            ...prevOptions.plugins,
-            tooltip: {
-              ...prevOptions.plugins?.tooltip,
-              callbacks: {
-                label: function(context) {
-                  return `${context.dataset.label}: ${context.formattedValue}`;
-                }
-              }
-            }
           }
-        }));
+        };
       }
+
+      dispatch({ type: ChartActionTypes.UPDATE_CHART_OPTIONS, payload: newOptions });
     }, 
-    [fontFamily, fontSize, aspectRatio, animationDuration, animationDelay, animationType, tension, borderWidth, showLegend, legendPosition, legendColor, showTitle, chartTitle, titleColor, showSubtitle, subtitle, subtitleColor, selectedChartType, isDarkMode]
+    [fontFamily, fontSize, state.appearance.aspectRatio, state.appearance.tension, state.appearance.borderWidth, state.appearance.legendColor, state.appearance.showLegend, state.appearance.legendPosition, state.animation.animationDuration, state.animation.animationDelay, state.animation.animationType, state.titleConfig.subtitleColor, state.titleConfig.titleColor, state.titleConfig.showTitle, state.titleConfig.chartTitle, state.titleConfig.showSubtitle, state.titleConfig.subtitle, state.dataConfig.selectedChartType, isDarkMode]
   );
 
   useEffect(
     () => { 
       updateChartOptions(); 
     }, 
-    [showLegend, legendPosition, chartTitle, showTitle, aspectRatio, 
-    animationDuration, borderWidth, tension, updateChartOptions,
-    colorScheme, legendColor, titleColor, showSubtitle, subtitle, 
-    subtitleColor, animationType, animationDelay]
+    [updateChartOptions]
   );
 
   const destroyChart = useCallback(() => {
@@ -383,142 +282,152 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   
     // Настраиваем цвета в зависимости от темы
     const gridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-    // const textColor = isDarkMode ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.8)";
 
     let currentData: ChartDataType;
-    let chartType = selectedChartType;
+    let chartType = state.dataConfig.selectedChartType;
     
     if (customData) {
       currentData = customData;
     } else {
       // Определяем, какой датасет и тип графика использовать
-      if (selectedChartType === ChartTypeEnum.BUBBLE) {
+      if (state.dataConfig.selectedChartType === ChartTypeEnum.BUBBLE) {
         currentData = mockDatasets.bubbleData as ChartDataType;
-      } else if (selectedChartType === ChartTypeEnum.SCATTER) {
+      } else if (state.dataConfig.selectedChartType === ChartTypeEnum.SCATTER) {
         currentData = mockDatasets.scatterData as ChartDataType;
-      } else if (selectedDataset === DatasetEnum.DEMOGRAPHICS) {
+      } else if (state.dataConfig.selectedDataset === DatasetEnum.DEMOGRAPHICS) {
         // Для демографических данных лучше использовать круговые диаграммы
         currentData = mockDatasets.demographics as ChartDataType;
-        if (selectedChartType !== ChartTypeEnum.PIE && selectedChartType !== ChartTypeEnum.DOUGHNUT) {
+        if (state.dataConfig.selectedChartType !== ChartTypeEnum.PIE && state.dataConfig.selectedChartType !== ChartTypeEnum.DOUGHNUT) {
           chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
         }
-      } else if (selectedDataset === DatasetEnum.PERFORMANCE) {
+      } else if (state.dataConfig.selectedDataset === DatasetEnum.PERFORMANCE) {
         currentData = mockDatasets.performance as ChartDataType;
-        if (selectedChartType !== ChartTypeEnum.RADAR && selectedChartType !== ChartTypeEnum.POLAR_AREA) {
+        if (state.dataConfig.selectedChartType !== ChartTypeEnum.RADAR && state.dataConfig.selectedChartType !== ChartTypeEnum.POLAR_AREA) {
           chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
         }
-      } else if (selectedDataset === DatasetEnum.TIME_DATA) {
+      } else if (state.dataConfig.selectedDataset === DatasetEnum.TIME_DATA) {
         currentData = mockDatasets.timeData as ChartDataType;
-        if (selectedChartType !== ChartTypeEnum.LINE) {
+        if (state.dataConfig.selectedChartType !== ChartTypeEnum.LINE) {
           chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
         }
       } else {
         // Для остальных датасетов используем выбранный тип графика
-        currentData = mockDatasets[selectedDataset] as ChartDataType;
+        currentData = mockDatasets[state.dataConfig.selectedDataset] as ChartDataType;
       }
     }
 
     // Создаем дополнительные опции в зависимости от датасета
     // Обновляем опции графика с учетом темы
-    // Create the options object with a type assertion
-    const options = {
-      ...chartOptions,
+
+    const baseOptions = {
+      ...state.chartOptions,
       plugins: {
-        ...chartOptions.plugins,
+        ...state.chartOptions.plugins,
         legend: {
-          ...chartOptions.plugins?.legend,
+          ...state.chartOptions.plugins?.legend,
           labels: {
-            ...chartOptions.plugins?.legend?.labels,
-            color: legendColor,
+            ...state.chartOptions.plugins?.legend?.labels,
+            color: state.appearance.legendColor,
           }
         },
         title: {
-          ...chartOptions.plugins?.title,
-          color: titleColor,
+          ...state.chartOptions.plugins?.title,
+          color: state.titleConfig.titleColor,
         },
         subtitle: {
-          ...chartOptions.plugins?.subtitle,
-          color: subtitleColor,
+          ...state.chartOptions.plugins?.subtitle,
+          color: state.titleConfig.subtitleColor,
         }
-      },
-      scales: chartType !== ChartTypeEnum.PIE && 
-              chartType !== ChartTypeEnum.DOUGHNUT && 
-              chartType !== ChartTypeEnum.RADAR && 
-              chartType !== ChartTypeEnum.POLAR_AREA ? {
-        x: {
-          grid: {
-            color: gridColor,
-          },
-          ticks: {
-            color: legendColor, // Используем legendColor для тиков оси X
-          },
-          title: {
-            color: legendColor, // Используем legendColor для заголовка оси X
-          }
-        },
-        y: {
-          grid: {
-            color: gridColor,
-          },
-          ticks: {
-            color: legendColor, // Используем legendColor для тиков оси Y
-          },
-          title: {
-            color: legendColor, // Используем legendColor для заголовка оси Y
-          }
-        },
-        ...(((selectedDataset === DatasetEnum.USERS || selectedDataset === DatasetEnum.TIME_DATA) && 
-            (chartType === ChartTypeEnum.LINE || chartType === ChartTypeEnum.BAR)) ? {
-          y1: {
-            type: "linear",
-            display: true,
-            position: "right",
-            title: {
-              display: true,
-              text: selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
+      }
+    };
+
+    let options: ChartOptions<ChartType>;
+
+    if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
+      options = baseOptions;
+    } else if (chartType === ChartTypeEnum.RADAR || chartType === ChartTypeEnum.POLAR_AREA) {
+      options = {
+        ...baseOptions,
+        scales: {
+          r: {
+            beginAtZero: true,
+            ticks: {
+              backdropColor: 'transparent',
               font: {
                 family: fontFamily,
                 size: fontSize,
               },
-              color: legendColor, // Добавляем цвет для заголовка оси Y1
+              color: state.appearance.legendColor, 
             },
             grid: {
-              drawOnChartArea: false,
+              color: gridColor,
+            },
+            angleLines: {
+              color: gridColor,
+            },
+            pointLabels: {
+              color: state.appearance.legendColor, 
+            }
+          }
+        }
+      };
+    } else {
+      options = {
+        ...baseOptions,
+        scales: {
+          x: {
+            grid: {
               color: gridColor,
             },
             ticks: {
-              font: {
-                family: fontFamily,
-                size: fontSize,
-              },
-              color: legendColor, // Используем legendColor для тиков оси Y1
-            }
-          }
-        } : {})
-      } : {
-        ...chartOptions.scales,
-        r: chartType === ChartTypeEnum.RADAR || chartType === ChartTypeEnum.POLAR_AREA ? {
-          beginAtZero: true,
-          ticks: {
-            backdropColor: 'transparent',
-            font: {
-              family: fontFamily,
-              size: fontSize,
+              color: state.appearance.legendColor,
             },
-            color: legendColor, // Используем legendColor для радарных графиков
+            title: {
+              color: state.appearance.legendColor,
+            }
           },
-          grid: {
-            color: gridColor,
+          y: {
+            grid: {
+              color: gridColor,
+            },
+            ticks: {
+              color: state.appearance.legendColor,
+            },
+            title: {
+              color: state.appearance.legendColor,
+            }
           },
-          angleLines: {
-            color: gridColor,
-          },
-          pointLabels: {
-            color: legendColor, // Добавляем цвет для подписей точек в радарном графике
-          }
-        } : undefined
-      }
-    } as ChartOptions<ChartType>;
+          ...(((state.dataConfig.selectedDataset === DatasetEnum.USERS || state.dataConfig.selectedDataset === DatasetEnum.TIME_DATA) && 
+              (state.dataConfig.selectedChartType === ChartTypeEnum.LINE || state.dataConfig.selectedChartType === ChartTypeEnum.BAR)) ? {
+            y1: {
+              type: "linear",
+              display: true,
+              position: "right",
+              title: {
+                display: true,
+                text: state.dataConfig.selectedDataset === DatasetEnum.USERS ? "New Registrations" : "Server Load (%)",
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                },
+                color: state.appearance.legendColor, 
+              },
+              grid: {
+                drawOnChartArea: false,
+                color: gridColor,
+              },
+              ticks: {
+                font: {
+                  family: fontFamily,
+                  size: fontSize,
+                },
+                color: state.appearance.legendColor, 
+              }
+            }
+          } : {})
+        }
+      };
+    }
 
     // Создаем график
     chartInstanceRef.current = new ChartJS(ctx, {
@@ -528,7 +437,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     });
 
     if (chartInstanceRef.current) {
-      const schemeColors = colorSchemes.find(scheme => scheme.id === colorScheme)?.colors || colorSchemes[0].colors;
+      const schemeColors = colorSchemes.find(scheme => scheme.id === state.appearance.colorScheme)?.colors || colorSchemes[0].colors;
       
       chartInstanceRef.current.data.datasets.forEach((dataset, index) => {
         const color = schemeColors[index % schemeColors.length];
@@ -548,16 +457,16 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           radarDataset.pointBackgroundColor = color;
           radarDataset.pointBorderColor = "#fff";
           radarDataset.fill = true;
-          radarDataset.borderWidth = borderWidth;
-          radarDataset.pointRadius = 3;
+          radarDataset.borderWidth = state.appearance.borderWidth;
+          radarDataset.pointRadius = 4;
           radarDataset.pointHoverRadius = 5;
-          radarDataset.tension = 0.4; // Добавляем настройку сглаживания линий
-          radarDataset.spanGaps = true; // Добавляем настройку для соединения точек
-          // radarDataset.segment = {
-          //   borderColor: color,
-          //   backgroundColor: color + "33",
-          //   borderWidth: borderWidth,
-          // };
+          radarDataset.tension = 0.4;
+          radarDataset.spanGaps = true;
+          radarDataset.segment = {
+            borderColor: color,
+            backgroundColor: color + "33",
+            borderWidth: state.appearance.borderWidth,
+          };
         } else if (chartType === ChartTypeEnum.POLAR_AREA) {
           // Для полярных областей используем массив цветов
           dataset.backgroundColor = schemeColors.map(c => c + "77");
@@ -570,7 +479,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       
       chartInstanceRef.current.update();
     }
-  }, [destroyChart, isDarkMode, selectedChartType, customData, chartOptions, legendColor, titleColor, subtitleColor, selectedDataset, fontFamily, fontSize, colorScheme, borderWidth]);
+  }, [destroyChart, isDarkMode, state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, state.chartOptions, state.appearance.legendColor, state.appearance.colorScheme, state.appearance.borderWidth, state.titleConfig.titleColor, state.titleConfig.subtitleColor, customData, fontFamily, fontSize]);
 
   useEffect(() => {
     let isMounted = true;
@@ -585,7 +494,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [selectedDataset, selectedChartType, chartOptions, renderChart]);
+  }, [
+    state.dataConfig.selectedDataset, 
+    state.dataConfig.selectedChartType, 
+    state.chartOptions, 
+    renderChart
+  ]);
 
 
   // Добавим эффект для обновления графика при изменении шрифта
@@ -647,11 +561,11 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         title={
           <div className="flex items-center justify-between mt-5">
             <Badge.Ribbon 
-              text={selectedChartType.charAt(0).toUpperCase() + selectedChartType.slice(1)} 
+              text={state.dataConfig.selectedChartType.charAt(0).toUpperCase() + state.dataConfig.selectedChartType.slice(1)} 
               color="blue"
             >
               <AntTitle level={2} className="flex items-center border-3 border-dashed border-blue-200">
-                {getChartIcon(selectedChartType)}
+                {getChartIcon(state.dataConfig.selectedChartType)}
                 <span className="mr-10" style={{ fontFamily: fontFamily }}>Chart.js Visualization Demo</span>
               </AntTitle>
             </Badge.Ribbon>
@@ -684,45 +598,45 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           <Col span={24}>
             <ChartControls
               basics={{
-                selectedDataset,
-                setSelectedDataset,
-                selectedChartType,
-                setSelectedChartType,
-                compatibleChartTypes,
-                borderWidth,
-                setBorderWidth,
-                showLegend,
-                setShowLegend,
-                legendPosition,
-                setLegendPosition,
-                legendColor,
-                setLegendColor,
-                showTitle,
-                setShowTitle,
-                chartTitle,
-                setChartTitle,
-                titleColor,
-                setTitleColor,
-                showSubtitle,
-                setShowSubtitle,
-                subtitle,
-                setSubtitle,
-                subtitleColor,
-                setSubtitleColor,
-                animationDuration,
-                setAnimationDuration,
-                animationType,
-                setAnimationType,
-                animationDelay,
-                setAnimationDelay,
-                animationPlaying,
-                setAnimationPlaying,
-                aspectRatio,
-                setAspectRatio,
-                tension,
-                setTension,
-                colorScheme,
-                setColorScheme,
+                selectedDataset: state.dataConfig.selectedDataset,
+                setSelectedDataset: (dataset) => dispatch({ type: ChartActionTypes.SET_DATASET, payload: dataset }),
+                selectedChartType: state.dataConfig.selectedChartType,
+                setSelectedChartType: (type) => dispatch({ type: ChartActionTypes.SET_CHART_TYPE, payload: type }),
+                compatibleChartTypes: state.dataConfig.compatibleChartTypes,
+                borderWidth: state.appearance.borderWidth,
+                setBorderWidth: (width) => dispatch({ type: ChartActionTypes.SET_BORDER_WIDTH, payload: width }),
+                showLegend: state.appearance.showLegend,
+                setShowLegend: (show) => dispatch({ type: ChartActionTypes.TOGGLE_LEGEND, payload: show }),
+                legendPosition: state.appearance.legendPosition,
+                setLegendPosition: (pos) => dispatch({ type: ChartActionTypes.SET_LEGEND_POSITION, payload: pos }),
+                legendColor: state.appearance.legendColor,
+                setLegendColor: (color) => dispatch({ type: ChartActionTypes.SET_LEGEND_COLOR, payload: color }),
+                showTitle: state.titleConfig.showTitle,
+                setShowTitle: (show) => dispatch({ type: ChartActionTypes.TOGGLE_TITLE, payload: show }),
+                chartTitle: state.titleConfig.chartTitle,
+                setChartTitle: (title) => dispatch({ type: ChartActionTypes.SET_TITLE, payload: title }),
+                titleColor: state.titleConfig.titleColor,
+                setTitleColor: (color) => dispatch({ type: ChartActionTypes.SET_TITLE_COLOR, payload: color }),
+                showSubtitle: state.titleConfig.showSubtitle,
+                setShowSubtitle: (show) => dispatch({ type: ChartActionTypes.TOGGLE_SUBTITLE, payload: show }),
+                subtitle: state.titleConfig.subtitle,
+                setSubtitle: (subtitle) => dispatch({ type: ChartActionTypes.SET_SUBTITLE, payload: subtitle }),
+                subtitleColor: state.titleConfig.subtitleColor,
+                setSubtitleColor: (color) => dispatch({ type: ChartActionTypes.SET_SUBTITLE_COLOR, payload: color }),
+                animationDuration: state.animation.animationDuration,
+                setAnimationDuration: (duration) => dispatch({ type: ChartActionTypes.SET_ANIMATION_DURATION, payload: duration }),
+                animationType: state.animation.animationType,
+                setAnimationType: (type) => dispatch({ type: ChartActionTypes.SET_ANIMATION_TYPE, payload: type }),
+                animationDelay: state.animation.animationDelay,
+                setAnimationDelay: (delay) => dispatch({ type: ChartActionTypes.SET_ANIMATION_DELAY, payload: delay }),
+                animationPlaying: state.animation.animationPlaying,
+                setAnimationPlaying: (playing) => dispatch({ type: ChartActionTypes.SET_ANIMATION_PLAYING, payload: playing }),
+                aspectRatio: state.appearance.aspectRatio,
+                setAspectRatio: (ratio) => dispatch({ type: ChartActionTypes.SET_ASPECT_RATIO, payload: ratio }),
+                tension: state.appearance.tension,
+                setTension: (tension) => dispatch({ type: ChartActionTypes.SET_TENSION, payload: tension }),
+                colorScheme: state.appearance.colorScheme,
+                setColorScheme: (scheme) => dispatch({ type: ChartActionTypes.SET_COLOR_SCHEME, payload: scheme }),
                 colorSchemes,
                 easingOptions,
               }}
