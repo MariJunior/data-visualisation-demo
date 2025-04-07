@@ -43,7 +43,7 @@ export default function Home() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-10xl mx-auto">
       <Title 
         level={1} 
         className="text-center mb-6"
@@ -95,19 +95,25 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-6">
-        {library === "chartjs" && (
-          <>
-            <DataUploader onDataLoaded={handleDataLoaded} />
+      {/* Двухколоночная разметка */}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Левая колонка - DataUploader */}
+        <div className="md:w-1/3 lg:w-1/4">
+          <DataUploader onDataLoaded={handleDataLoaded} />
+        </div>
+        
+        {/* Правая колонка - Контейнер с графиками */}
+        <div className="md:w-2/3 lg:w-3/4">
+          {library === "chartjs" && (
             <ChartJSComponent 
               fontSize={fontSize} 
               fontFamily={fontFamilyName} 
               customData={customData}
             />
-          </>
-        )}
-        {/* {library === "nivo" && <NivoComponent fontSize={fontSize} />}
-        {library === "plotly" && <PlotlyComponent fontSize={fontSize} />} */}
+          )}
+          {/* {library === "nivo" && <NivoComponent fontSize={fontSize} />}
+          {library === "plotly" && <PlotlyComponent fontSize={fontSize} />} */}
+        </div>
       </div>
     </div>
   );

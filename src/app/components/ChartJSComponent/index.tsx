@@ -103,15 +103,21 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
   // Обновляем список совместимых типов графиков при изменении датасета
   useEffect(() => {
-    const chartTypes = getCompatibleChartTypes(state.dataConfig.selectedDataset);
-    dispatch({ type: ChartActionTypes.SET_COMPATIBLE_TYPES, payload: chartTypes });
-    
-    // Если текущий выбранный тип графика не совместим с новым датасетом,
-    // выбираем первый доступный тип из списка совместимых
-    if (chartTypes.length > 0 && !chartTypes.includes(state.dataConfig.selectedChartType)) {
-      dispatch({ type: ChartActionTypes.SET_CHART_TYPE, payload: chartTypes[0] });
+    // Если есть пользовательские данные, разрешаем все типы графиков
+    if (customData) {
+      dispatch({ type: ChartActionTypes.SET_COMPATIBLE_TYPES, payload: Object.values(ChartTypeEnum) });
+    } else {
+      // Иначе используем логику совместимости с моковыми данными
+      const chartTypes = getCompatibleChartTypes(state.dataConfig.selectedDataset);
+      dispatch({ type: ChartActionTypes.SET_COMPATIBLE_TYPES, payload: chartTypes });
+      
+      // Если текущий выбранный тип графика не совместим с новым датасетом,
+      // выбираем первый доступный тип из списка совместимых
+      if (chartTypes.length > 0 && !chartTypes.includes(state.dataConfig.selectedChartType)) {
+        dispatch({ type: ChartActionTypes.SET_CHART_TYPE, payload: chartTypes[0] });
+      }
     }
-  }, [state.dataConfig.selectedChartType, state.dataConfig.selectedDataset]);
+  }, [state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, customData]);
 
   const updateChartOptions = useCallback(
     () => {
@@ -258,6 +264,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   const destroyChart = useCallback(() => {
     if (chartInstanceRef.current) {
       try {
+        // Принудительно очищаем canvas перед уничтожением
+        const ctx = chartRef.current?.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, chartRef.current?.width || 0, chartRef.current?.height || 0);
+        }
+
         chartInstanceRef.current.destroy();
         chartInstanceRef.current = null;
       } catch (error) {
@@ -285,9 +297,11 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
     let currentData: ChartDataType;
     let chartType = state.dataConfig.selectedChartType;
+    console.log("Current chart type:", chartType); // Для отладки
     
-    if (customData) {
+    if (customData && customData.labels && customData.datasets) {
       currentData = customData;
+      console.log("Using custom data:", currentData);
     } else {
       // Определяем, какой датасет и тип графика использовать
       if (state.dataConfig.selectedChartType === ChartTypeEnum.BUBBLE) {
@@ -361,13 +375,40 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             },
             grid: {
               color: gridColor,
+              lineWidth: 2,
+              circular: true,
             },
             angleLines: {
               color: gridColor,
+              lineWidth: 2,
+              display: true,
             },
             pointLabels: {
-              color: state.appearance.legendColor, 
+              color: state.appearance.legendColor,
+              font: {
+                family: fontFamily,
+                size: fontSize,
+              }
             }
+          }
+        },
+        elements: {
+          line: {
+            tension: 0, // Для радаров лучше использовать 0
+            borderWidth: state.appearance.borderWidth,
+            fill: true, // Включаем заливку на уровне элементов
+          }, 
+          point: {
+            radius: 3,
+            borderWidth: 2,
+            hoverRadius: 5,
+            hoverBorderWidth: 2
+          }
+        },
+        plugins: {
+          ...baseOptions.plugins,
+          filler: {
+            propagate: true
           }
         }
       };
@@ -436,6 +477,17 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       options: options
     });
 
+    // После создания chartInstanceRef.current:
+    if (chartInstanceRef.current) {
+      console.log("Chart created with type:", chartType);
+      
+      // Отладка данных для радарного графика
+      if (chartType === ChartTypeEnum.RADAR) {
+        console.log("Radar datasets:", chartInstanceRef.current.data.datasets);
+        console.log("Radar options:", chartInstanceRef.current.options);
+      }
+    }
+
     if (chartInstanceRef.current) {
       const schemeColors = colorSchemes.find(scheme => scheme.id === state.appearance.colorScheme)?.colors || colorSchemes[0].colors;
       
@@ -450,23 +502,36 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         } else if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
           dataset.backgroundColor = schemeColors;
         } else if (chartType === ChartTypeEnum.RADAR) {
+          // Удаляем все свойства, которые могут мешать
+          Object.keys(dataset).forEach(key => {
+            if (key !== 'label' && key !== 'data') {
+              delete (dataset as any)[key];
+            }
+          });
+
           // Для радарных графиков каждый датасет должен иметь ОДИН цвет
           const radarDataset = dataset as ChartDataset<'radar', number[]> & RadarControllerDatasetOptions;
-          radarDataset.borderColor = color;
-          radarDataset.backgroundColor = color + "33";
-          radarDataset.pointBackgroundColor = color;
-          radarDataset.pointBorderColor = "#fff";
-          radarDataset.fill = true;
-          radarDataset.borderWidth = state.appearance.borderWidth;
-          radarDataset.pointRadius = 4;
-          radarDataset.pointHoverRadius = 5;
-          radarDataset.tension = 0.4;
-          radarDataset.spanGaps = true;
-          // radarDataset.segment = {
-          //   borderColor: color,
-          //   backgroundColor: color + "33",
-          //   borderWidth: state.appearance.borderWidth,
-          // };
+
+          Object.assign(radarDataset, {
+            type: "radar",
+            // Основные настройки линий и заливки
+            fill: true,  // Критически важно для заливки
+            backgroundColor: color + "33",
+            borderColor: color,
+            borderWidth: state.appearance.borderWidth,
+            // Настройки точек
+            pointBackgroundColor: color,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: color,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            // Дополнительные настройки линий
+            // Для радарных графиков не рекомендуется использовать большое значение tension
+            tension: 0, // Прямые линии для радара обычно лучше
+            // Убедитесь, что линии закрыты (создают замкнутую фигуру)
+            spanGaps: false,
+          })
         } else if (chartType === ChartTypeEnum.POLAR_AREA) {
           // Для полярных областей используем массив цветов
           dataset.backgroundColor = schemeColors.map(c => c + "77");
