@@ -505,7 +505,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           // Удаляем все свойства, которые могут мешать
           Object.keys(dataset).forEach(key => {
             if (key !== 'label' && key !== 'data') {
-              delete (dataset as any)[key];
+              delete (dataset as ChartDataset<'radar', number[]> & { [key: string]: unknown })[key];
             }
           });
 
