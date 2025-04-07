@@ -38,7 +38,7 @@ export default function Home() {
   const [fontFamilyName, setFontFamilyName] = useState("JetBrains Mono");
   const [customData, setCustomData] = useState<ChartDataType | null>(null);
 
-  const handleDataLoaded = (data: ChartDataType) => {
+  const handleDataLoaded = (data: ChartDataType | null) => {
     setCustomData(data);
   };
 
