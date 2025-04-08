@@ -1,7 +1,7 @@
 import { useIsDarkMode } from "@/app/hooks/useIsDarkMode";
 import { ChartDataType } from "@/app/types/chart";
-import { BarChartOutlined, DotChartOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined } from "@ant-design/icons";
-import { Badge, Card, Col, Row, Typography } from "antd";
+import { BarChartOutlined, DotChartOutlined, ExpandAltOutlined, LineChartOutlined, PieChartOutlined, RadarChartOutlined, UndoOutlined, ZoomInOutlined } from "@ant-design/icons";
+import { Tooltip as AntdTooltip, Badge, Button, Card, Col, Row, Typography } from "antd";
 import {
   ArcElement,
   BarController,
@@ -29,7 +29,8 @@ import {
   Title,
   Tooltip
 } from "chart.js";
-import { FC, useCallback, useEffect, useReducer, useRef } from "react";
+import Zoom from 'chartjs-plugin-zoom';
+import { FC, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { chartReducer, initialChartState } from "./chartReducer";
 import ChartControls from "./components/ChartControls";
 import { colorSchemes, easingOptions } from "./constants";
@@ -65,7 +66,9 @@ ChartJS.register(
   Tooltip,
   Legend,
   SubTitle,
-  Colors
+  Colors,
+
+  Zoom
 );
 
 export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum[] => {
@@ -95,11 +98,43 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   customData = null,
 }) => {
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomSettings, setZoomSettings] = useState({
+    enableZoom: true,
+    zoomMode: 'xy' as 'xy' | 'x' | 'y',
+    enablePan: true,
+    zoomSpeed: 0.5
+  });
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS<ChartType, unknown[], unknown> | null>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const isDarkMode = useIsDarkMode();
+
+  const toggleFullscreen = () => {
+    if (!chartContainerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      chartContainerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(err => {
+        console.error(`Error attempting to exit fullscreen: ${err.message}`);
+      });
+    }
+  };
+
+  const resetZoom = () => {
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.resetZoom();
+    }
+  };
 
   // Обновляем список совместимых типов графиков при изменении датасета
   useEffect(() => {
@@ -220,6 +255,22 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
               family: fontFamily,
               size: fontSize - 2,
             }
+          },
+          zoom: {
+            pan: {
+              enabled: zoomSettings.enablePan && zoomSettings.enableZoom,
+              mode: zoomSettings.zoomMode,
+            },
+            zoom: {
+              wheel: {
+                enabled: zoomSettings.enableZoom,
+                speed: zoomSettings.zoomSpeed,
+              },
+              pinch: {
+                enabled: zoomSettings.enableZoom,
+              },
+              mode: zoomSettings.zoomMode,
+            }
           }
         },
       };
@@ -251,7 +302,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
       dispatch({ type: ChartActionTypes.UPDATE_CHART_OPTIONS, payload: newOptions });
     }, 
-    [fontFamily, fontSize, state.appearance.aspectRatio, state.appearance.tension, state.appearance.borderWidth, state.appearance.legendColor, state.appearance.showLegend, state.appearance.legendPosition, state.animation.animationDuration, state.animation.animationDelay, state.animation.animationType, state.titleConfig.subtitleColor, state.titleConfig.titleColor, state.titleConfig.showTitle, state.titleConfig.chartTitle, state.titleConfig.showSubtitle, state.titleConfig.subtitle, state.dataConfig.selectedChartType, isDarkMode]
+    [fontFamily, fontSize, state.appearance.aspectRatio, state.appearance.tension, state.appearance.borderWidth, state.appearance.legendColor, state.appearance.showLegend, state.appearance.legendPosition, state.animation.animationDuration, state.animation.animationDelay, state.animation.animationType, state.titleConfig.subtitleColor, state.titleConfig.titleColor, state.titleConfig.showTitle, state.titleConfig.chartTitle, state.titleConfig.showSubtitle, state.titleConfig.subtitle, state.dataConfig.selectedChartType, zoomSettings.enablePan, zoomSettings.enableZoom, zoomSettings.zoomMode, zoomSettings.zoomSpeed, isDarkMode]
   );
 
   useEffect(
@@ -632,8 +683,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     }
   }, [destroyChart, isDarkMode, state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, state.chartOptions, state.appearance.legendColor, state.appearance.colorScheme, state.appearance.borderWidth, state.titleConfig.titleColor, state.titleConfig.subtitleColor, customData, fontFamily, fontSize]);
 
-
-    // Также, важно обновлять график при изменении типа графика
+  // Также, важно обновлять график при изменении типа графика
   useEffect(() => {
     if (chartRef.current) {
       console.log("Тип графика изменился, пересоздаем график");
@@ -661,7 +711,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     state.chartOptions, 
     renderChart
   ]);
-
 
   // Добавим эффект для обновления графика при изменении шрифта
   useEffect(() => {
@@ -739,9 +788,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         <Row gutter={[16, 16]}>
           <Col span={24}>
             <div 
+              ref={chartContainerRef}
               className="relative bg-white dark:bg-gray-900 rounded-lg p-4 shadow-inner" 
               style={{ 
-                height: "400px", 
+                height: isFullscreen ? "95vh" : "400px", 
                 width: "100%",
                 backgroundImage: isDarkMode ? 
                   "radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.2) 1px, transparent 0), radial-gradient(circle at 7px 7px, rgba(255, 255, 255, 0.1) 1px, transparent 0)" : 
@@ -752,6 +802,29 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                   "inset 0 2px 10px rgba(99, 102, 241, 0.1)"
               }}
             >
+              <div className="absolute top-2 right-2 z-10 flex gap-2">
+                <AntdTooltip title="Сбросить масштаб">
+                  <Button 
+                    icon={<UndoOutlined />} 
+                    onClick={resetZoom}
+                    size="small"
+                  />
+                </AntdTooltip>
+                <AntdTooltip title="Увеличить (прокручивайте колесо мыши)">
+                  <Button 
+                    icon={<ZoomInOutlined />} 
+                    size="small"
+                    disabled
+                  />
+                </AntdTooltip>
+                <AntdTooltip title={isFullscreen ? "Выйти из полноэкранного режима" : "Полноэкранный режим"}>
+                  <Button 
+                    icon={<ExpandAltOutlined />} 
+                    onClick={toggleFullscreen}
+                    size="small"
+                  />
+                </AntdTooltip>
+              </div>
               <canvas ref={chartRef} />
             </div>
           </Col>
@@ -801,6 +874,16 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                 setColorScheme: (scheme) => dispatch({ type: ChartActionTypes.SET_COLOR_SCHEME, payload: scheme }),
                 colorSchemes,
                 easingOptions,
+              }}
+              advanced={{
+                enableZoom: zoomSettings.enableZoom,
+                setEnableZoom: (enable) => setZoomSettings({...zoomSettings, enableZoom: enable}),
+                zoomMode: zoomSettings.zoomMode,
+                setZoomMode: (mode) => setZoomSettings({...zoomSettings, zoomMode: mode}),
+                enablePan: zoomSettings.enablePan,
+                setEnablePan: (enable) => setZoomSettings({...zoomSettings, enablePan: enable}),
+                zoomSpeed: zoomSettings.zoomSpeed,
+                setZoomSpeed: (speed) => setZoomSettings({...zoomSettings, zoomSpeed: speed})
               }}
             />
           </Col>
