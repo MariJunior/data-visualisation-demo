@@ -30,7 +30,7 @@ import {
   Tooltip
 } from "chart.js";
 import Zoom from 'chartjs-plugin-zoom';
-import { FC, useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { chartReducer, initialChartState } from "./chartReducer";
 import ChartControls from "./components/ChartControls";
 import { colorSchemes, easingOptions } from "./constants";
@@ -97,8 +97,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   fontFamily = "Arial",
   customData = null,
 }) => {
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isResizingRef = useRef(false);
   const [zoomSettings, setZoomSettings] = useState({
     enableZoom: true,
     zoomMode: 'xy' as 'xy' | 'x' | 'y',
@@ -111,6 +113,83 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const isDarkMode = useIsDarkMode();
+
+  const resizeChartToContainer = useCallback(() => {
+    if (isResizingRef.current) return;
+    if (!chartContainerRef.current || !chartRef.current || !chartInstanceRef.current) return;
+    
+    isResizingRef.current = true;
+    
+    // Calculate container dimensions minus padding
+    const containerRect = chartContainerRef.current.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Apply padding (adjust these values as needed)
+    const horizontalPadding = 30; // Total left+right padding
+    const verticalPadding = 30;   // Total top+bottom padding
+    
+    // Calculate target dimensions
+    const targetWidth = containerWidth - horizontalPadding;
+    const targetHeight = containerHeight - verticalPadding;
+    
+    if (targetWidth <= 0 || targetHeight <= 0) {
+      isResizingRef.current = false;
+      return;
+    }
+    
+    // Update canvas dimensions - set ONLY the attributes, not the style
+    const canvas = chartRef.current;
+    canvas.width = targetWidth * window.devicePixelRatio;
+    canvas.height = targetHeight * window.devicePixelRatio;
+    
+    // Set the style dimensions at the proper size for the display
+    canvas.style.width = `${targetWidth}px`;
+    canvas.style.height = `${targetHeight}px`;
+    
+    // Update chart with respect to new dimensions
+    chartInstanceRef.current.resize();
+    
+    // Short timeout to prevent infinite resize loops
+    setTimeout(() => {
+      isResizingRef.current = false;
+    }, 100);
+  }, []);
+  
+  // Improved fullscreen handling with event listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreenActive = !!document.fullscreenElement;
+      setIsFullscreen(isFullscreenActive);
+      
+      // Add a small delay to ensure DOM is updated
+      setTimeout(() => {
+        resizeChartToContainer();
+      }, 100);
+    };
+
+    // Add event listener for fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [resizeChartToContainer]);
+
+  // Add resize observer to handle container size changes
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    
+    const resizeObserver = new ResizeObserver(() => {
+      resizeChartToContainer();
+    });
+    
+    resizeObserver.observe(chartContainerRef.current);
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [resizeChartToContainer]);
 
   const toggleFullscreen = () => {
     if (!chartContainerRef.current) return;
@@ -724,6 +803,15 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       renderChart();
     }
   }, [destroyChart, fontFamily, fontSize, renderChart]);
+  
+  // Resize the chart when it's initially rendered and when chart type changes
+  useLayoutEffect(() => {
+    const timer = setTimeout(() => {
+      resizeChartToContainer();
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [state.dataConfig.selectedChartType, renderChart, resizeChartToContainer]);
 
   // Функция для получения иконки в зависимости от типа графика
   const getChartIcon = (chartType: ChartTypeEnum) => {
@@ -793,6 +881,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
               style={{ 
                 height: isFullscreen ? "95vh" : "400px", 
                 width: "100%",
+                transition: "height 0.3s ease",
                 backgroundImage: isDarkMode ? 
                   "radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.2) 1px, transparent 0), radial-gradient(circle at 7px 7px, rgba(255, 255, 255, 0.1) 1px, transparent 0)" : 
                   "radial-gradient(circle at 1px 1px, #c9c6cd 1px, transparent 0)",
@@ -825,7 +914,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                   />
                 </AntdTooltip>
               </div>
-              <canvas ref={chartRef} />
+              <canvas ref={chartRef} style={{ maxWidth: '100%', maxHeight: '100%' }} />
             </div>
           </Col>
       
