@@ -264,6 +264,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   const destroyChart = useCallback(() => {
     if (chartInstanceRef.current) {
       try {
+        chartInstanceRef.current.stop();
+
+        chartInstanceRef.current.canvas.removeEventListener('click', () => {});
+
         // Принудительно очищаем canvas перед уничтожением
         const ctx = chartRef.current?.getContext('2d');
         if (ctx) {
@@ -272,6 +276,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
         chartInstanceRef.current.destroy();
         chartInstanceRef.current = null;
+
+        setTimeout(() => {}, 0);
       } catch (error) {
         console.error("Error destroying chart:", error);
       }
@@ -300,33 +306,96 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     console.log("Current chart type:", chartType); // Для отладки
     
     if (customData && customData.labels && customData.datasets) {
-      currentData = customData;
+      // Создаем глубокую копию данных
+      currentData = {
+        labels: Array.isArray(customData.labels) ? [...customData.labels] : [],
+        datasets: Array.isArray(customData.datasets) 
+          ? customData.datasets.map(dataset => ({
+              label: dataset.label || '',
+              data: Array.isArray(dataset.data) ? [...dataset.data] : []
+            }))
+          : []
+      };
       console.log("Using custom data:", currentData);
     } else {
       // Определяем, какой датасет и тип графика использовать
       if (state.dataConfig.selectedChartType === ChartTypeEnum.BUBBLE) {
-        currentData = mockDatasets.bubbleData as ChartDataType;
+        const sourceData = mockDatasets.bubbleData as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
       } else if (state.dataConfig.selectedChartType === ChartTypeEnum.SCATTER) {
-        currentData = mockDatasets.scatterData as ChartDataType;
+        const sourceData =mockDatasets.scatterData as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
       } else if (state.dataConfig.selectedDataset === DatasetEnum.DEMOGRAPHICS) {
         // Для демографических данных лучше использовать круговые диаграммы
-        currentData = mockDatasets.demographics as ChartDataType;
+        const sourceData =mockDatasets.demographics as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
         if (state.dataConfig.selectedChartType !== ChartTypeEnum.PIE && state.dataConfig.selectedChartType !== ChartTypeEnum.DOUGHNUT) {
           chartType = ChartTypeEnum.PIE; // Автоматически переключаемся на круговую диаграмму
         }
       } else if (state.dataConfig.selectedDataset === DatasetEnum.PERFORMANCE) {
-        currentData = mockDatasets.performance as ChartDataType;
+        const sourceData =mockDatasets.performance as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
         if (state.dataConfig.selectedChartType !== ChartTypeEnum.RADAR && state.dataConfig.selectedChartType !== ChartTypeEnum.POLAR_AREA) {
           chartType = ChartTypeEnum.RADAR; // Автоматически переключаемся на радарную диаграмму
         }
       } else if (state.dataConfig.selectedDataset === DatasetEnum.TIME_DATA) {
-        currentData = mockDatasets.timeData as ChartDataType;
+        const sourceData =mockDatasets.timeData as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
         if (state.dataConfig.selectedChartType !== ChartTypeEnum.LINE) {
           chartType = ChartTypeEnum.LINE; // Для временных рядов лучше использовать линейный график
         }
       } else {
         // Для остальных датасетов используем выбранный тип графика
-        currentData = mockDatasets[state.dataConfig.selectedDataset] as ChartDataType;
+        const sourceData =mockDatasets[state.dataConfig.selectedDataset] as ChartDataType;
+        if (sourceData && Array.isArray(sourceData.labels) && Array.isArray(sourceData.datasets)) {
+          currentData = {
+            labels: [...sourceData.labels],
+            datasets: sourceData.datasets.map(dataset => ({
+              label: dataset.label,
+              data: [...dataset.data]
+            }))
+          };
+        }
       }
     }
 
@@ -354,6 +423,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         }
       }
     };
+
+    if (baseOptions.scales) {
+      baseOptions.scales = {};
+    }
 
     let options: ChartOptions<ChartType>;
 
@@ -470,7 +543,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       };
     }
 
-    // Создаем график
+    // Создаем график с "чистыми" датасетами
     chartInstanceRef.current = new ChartJS(ctx, {
       data: currentData,
       type: chartType as ChartType,
@@ -488,26 +561,35 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       }
     }
 
+    // После создания графика применяем стили в зависимости от типа
     if (chartInstanceRef.current) {
       const schemeColors = colorSchemes.find(scheme => scheme.id === state.appearance.colorScheme)?.colors || colorSchemes[0].colors;
       
       chartInstanceRef.current.data.datasets.forEach((dataset, index) => {
         const color = schemeColors[index % schemeColors.length];
+
         if (chartType === ChartTypeEnum.LINE) {
-          dataset.borderColor = color;
-          dataset.backgroundColor = color + "33"; // Add transparency
+          Object.assign(dataset, {
+            borderColor: color,
+            backgroundColor: color + "33",
+            fill: false
+          });
         } else if (chartType === ChartTypeEnum.BAR) {
-          dataset.backgroundColor = color;
-          dataset.borderColor = color;
+          Object.assign(dataset, {
+            backgroundColor: color,
+            borderColor: color
+          });
         } else if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
-          dataset.backgroundColor = schemeColors;
+          Object.assign(dataset, {
+            backgroundColor: schemeColors
+          });
         } else if (chartType === ChartTypeEnum.RADAR) {
           // Удаляем все свойства, которые могут мешать
-          Object.keys(dataset).forEach(key => {
-            if (key !== 'label' && key !== 'data') {
-              delete (dataset as ChartDataset<'radar', number[]> & { [key: string]: unknown })[key];
-            }
-          });
+          // Object.keys(dataset).forEach(key => {
+          //   if (key !== 'label' && key !== 'data') {
+          //     delete (dataset as ChartDataset<'radar', number[]> & { [key: string]: unknown })[key];
+          //   }
+          // });
 
           // Для радарных графиков каждый датасет должен иметь ОДИН цвет
           const radarDataset = dataset as ChartDataset<'radar', number[]> & RadarControllerDatasetOptions;
@@ -534,17 +616,31 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           })
         } else if (chartType === ChartTypeEnum.POLAR_AREA) {
           // Для полярных областей используем массив цветов
-          dataset.backgroundColor = schemeColors.map(c => c + "77");
-          dataset.borderColor = schemeColors;
+          Object.assign(dataset, {
+            backgroundColor: schemeColors.map(c => c + "77"),
+            borderColor: schemeColors
+          });
         } else {
-          dataset.backgroundColor = color;
-          dataset.borderColor = color;
+          Object.assign(dataset, {
+            backgroundColor: color,
+            borderColor: color
+          });
         }
       });
       
-      chartInstanceRef.current.update();
+      chartInstanceRef.current.update("none");
     }
   }, [destroyChart, isDarkMode, state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, state.chartOptions, state.appearance.legendColor, state.appearance.colorScheme, state.appearance.borderWidth, state.titleConfig.titleColor, state.titleConfig.subtitleColor, customData, fontFamily, fontSize]);
+
+
+    // Также, важно обновлять график при изменении типа графика
+  useEffect(() => {
+    if (chartRef.current) {
+      console.log("Тип графика изменился, пересоздаем график");
+      destroyChart();
+      renderChart();
+    }
+  }, [state.dataConfig.selectedChartType, destroyChart, renderChart]);
 
   useEffect(() => {
     let isMounted = true;
@@ -661,8 +757,9 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           </Col>
       
           <Col span={24}>
-            <ChartControls
+            <ChartControls 
               basics={{
+                hideDatasetSelector: !!customData,
                 selectedDataset: state.dataConfig.selectedDataset,
                 setSelectedDataset: (dataset) => dispatch({ type: ChartActionTypes.SET_DATASET, payload: dataset }),
                 selectedChartType: state.dataConfig.selectedChartType,

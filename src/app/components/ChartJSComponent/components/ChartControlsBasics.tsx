@@ -8,6 +8,7 @@ const { Text } = Typography;
 const { Option } = Select;
 
 export type ChartControlsBasicProps = {
+  hideDatasetSelector?: boolean;
   selectedDataset: DatasetEnum;
   setSelectedDataset: (value: DatasetEnum) => void;
   selectedChartType: ChartTypeEnum;
@@ -52,6 +53,7 @@ export type ChartControlsBasicProps = {
 };
 
 export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
+  hideDatasetSelector,
   selectedDataset,
   setSelectedDataset,
   selectedChartType,
@@ -108,20 +110,22 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
         styles={{ header: { background: "#ddd6fe", color: "#5b21b6" }}}
       >
         <Space direction="vertical" className="w-full">
-          <div>
-            <Text>Dataset</Text>
-            <Select
-              style={{ width: "100%" }}
-              value={selectedDataset}
-              onChange={(value) => setSelectedDataset(value)}
-            >
-              {Object.values(DatasetEnum).map((dataset) => (
-                <Option key={dataset} value={dataset}>
-                  {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace("_", " ")}
-                </Option>
-              ))}
-            </Select>
-          </div>
+          { !hideDatasetSelector && (
+            <div>
+              <Text>Dataset</Text>
+              <Select
+                style={{ width: "100%" }}
+                value={selectedDataset}
+                onChange={(value) => setSelectedDataset(value)}
+              >
+                {Object.values(DatasetEnum).map((dataset) => (
+                  <Option key={dataset} value={dataset}>
+                    {dataset.charAt(0) + dataset.slice(1).toLowerCase().replace("_", " ")}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div>
             <Text>Chart Type</Text>
