@@ -10,6 +10,9 @@ import * as XLSX from "xlsx";
 const { TextArea } = Input;
 const { useMessage } = message;
 
+// Константа для максимального размера файла (например, 5 МБ)
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 МБ в байтах
+
 interface FileInfoDisplayProps {
   uploadedFile: {
     name: string;
@@ -120,6 +123,16 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
 
   // Обработка загрузки JSON файла
   const handleJsonFileUpload = (file: RcFile) => {
+    // Проверка размера файла
+    if (file.size > MAX_FILE_SIZE) {
+      messageApi.error({
+        content: `Файл слишком большой. Максимальный размер: ${MAX_FILE_SIZE / (1024 * 1024)} МБ`,
+        duration: 5,
+        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+      });
+      return Upload.LIST_IGNORE; // Предотвращает загрузку
+    }
+
     setLoading(true);
     const reader = new FileReader();
     
@@ -174,6 +187,15 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
 
   // Обработка загрузки Excel/CSV файла
   const handleSpreadsheetUpload = (file: RcFile) => {
+    if (file.size > MAX_FILE_SIZE) {
+      messageApi.error({
+        content: `Файл слишком большой. Максимальный размер: ${MAX_FILE_SIZE / (1024 * 1024)} МБ`,
+        duration: 5,
+        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+      });
+      return Upload.LIST_IGNORE;
+    }
+
     setLoading(true);
     const reader = new FileReader();
     
@@ -320,7 +342,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
             accept=".json"
             beforeUpload={handleJsonFileUpload}
             showUploadList={false}
-            disabled={loading}
+            disabled={loading || !!uploadedFile}
           >
             <p className="ant-upload-drag-icon">
               <UploadOutlined />
@@ -355,7 +377,7 @@ export const DataUploader: FC<DataUploaderProps> = ({ onDataLoaded }) => {
             accept=".xlsx,.xls,.csv"
             beforeUpload={handleSpreadsheetUpload}
             showUploadList={false}
-            disabled={loading}
+            disabled={loading || !!uploadedFile}
           >
             <p className="ant-upload-drag-icon">
               <FileExcelOutlined />
