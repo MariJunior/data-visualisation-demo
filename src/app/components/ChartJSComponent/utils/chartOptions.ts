@@ -17,6 +17,7 @@ export const createBaseOptions = (
 
   return {
     responsive: true,
+    maintainAspectRatio: true,
     font: {
       family: fontFamily,
       size: fontSize,

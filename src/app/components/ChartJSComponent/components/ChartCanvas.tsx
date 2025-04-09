@@ -4,12 +4,15 @@ import { FC, useEffect, useRef } from "react";
 import { useChartInstance } from "../hooks/useChartInstance";
 import { useChartResize } from "../hooks/useChartResize";
 import { useFullscreen } from "../hooks/useFullscreen";
+import { Chart } from "chart.js";
 
 interface ChartCanvasProps {
   aspectRatio: number;
   renderChart: () => void;
   isDarkMode: boolean;
-}
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  chartInstanceRef: React.RefObject<Chart | null>;
+} 
 
 /**
  * Компонент для отображения canvas с графиком
@@ -17,11 +20,12 @@ interface ChartCanvasProps {
 export const ChartCanvas: FC<ChartCanvasProps> = ({ 
   aspectRatio, 
   renderChart, 
-  isDarkMode 
+  isDarkMode,
+  canvasRef,
+  chartInstanceRef,
 }) => {
-  const chartRef = useRef<HTMLCanvasElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const { chartInstanceRef, resetZoom } = useChartInstance();
+  const { resetZoom } = useChartInstance();
   
   // Обработчик изменения полноэкранного режима
   const handleFullscreenChange = () => {
@@ -37,8 +41,8 @@ export const ChartCanvas: FC<ChartCanvasProps> = ({
   );
   
   const { resizeChartToContainer } = useChartResize(
-    chartRef, 
-    chartInstanceRef, 
+    canvasRef,
+    chartInstanceRef,
     chartContainerRef, 
     aspectRatio
   );
@@ -48,16 +52,16 @@ export const ChartCanvas: FC<ChartCanvasProps> = ({
     let isMounted = true;
     
     const timer = setTimeout(() => {
-      if (isMounted && chartRef.current) {
+      if (isMounted && canvasRef.current) {
         renderChart();
       }
-    }, 0);
+    }, 300);
     
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [renderChart]);
+  }, [canvasRef, renderChart]);
 
   // Изменение размера при изменении полноэкранного режима
   useEffect(() => {
@@ -108,7 +112,7 @@ export const ChartCanvas: FC<ChartCanvasProps> = ({
           />
         </AntdTooltip>
       </div>
-      <canvas ref={chartRef} style={{ maxWidth: "100%", maxHeight: "100%" }} />
+      <canvas ref={canvasRef} style={{ maxWidth: "100%", maxHeight: "100%" }} />
     </div>
   );
 };

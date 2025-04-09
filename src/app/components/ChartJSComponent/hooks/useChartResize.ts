@@ -10,7 +10,7 @@ import { RefObject, useCallback, useEffect, useRef } from "react";
  */
 export const useChartResize = (
   chartRef: RefObject<HTMLCanvasElement | null>,
-  chartInstanceRef: RefObject<Chart | null>,
+  chartInstanceRef: React.RefObject<Chart | null>,
   chartContainerRef: RefObject<HTMLDivElement | null>,
   aspectRatio: number
 ) => {
@@ -19,7 +19,7 @@ export const useChartResize = (
   // Изменение размера графика под размер контейнера
   const resizeChartToContainer = useCallback(() => {
     if (isResizingRef.current) return;
-    if (!chartContainerRef.current || !chartRef.current || !chartInstanceRef.current) return;
+    if (!chartContainerRef.current || !chartRef.current) return;
     
     isResizingRef.current = true;
     
@@ -63,10 +63,11 @@ export const useChartResize = (
     // Устанавливаем стили с правильными размерами для отображения
     canvas.style.width = `${targetWidth}px`;
     canvas.style.height = `${targetHeight}px`;
-    
-    // Обновляем график с учетом новых размеров
-    chartInstanceRef.current.resize();
-    
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.resize(targetWidth, targetHeight);
+    }
+        
     // Короткий таймаут для предотвращения бесконечных циклов изменения размера
     setTimeout(() => {
       isResizingRef.current = false;

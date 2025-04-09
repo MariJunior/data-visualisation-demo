@@ -1,4 +1,4 @@
-import { Chart, ChartType } from "chart.js";
+import { Chart } from "chart.js";
 import { useCallback, useEffect, useRef } from "react";
 
 /**
@@ -6,25 +6,30 @@ import { useCallback, useEffect, useRef } from "react";
  * @returns Объект с методами для управления экземпляром графика
  */
 export const useChartInstance = () => {
-  const chartInstanceRef = useRef<Chart<ChartType> | null>(null);
+  const chartInstanceRef = useRef<Chart | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Уничтожение экземпляра графика
   const destroyChart = useCallback(() => {
     if (chartInstanceRef.current) {
       try {
         chartInstanceRef.current.stop();
-        chartInstanceRef.current.canvas.removeEventListener("click", () => {});
+
+        if (chartInstanceRef.current.canvas) {
+          chartInstanceRef.current.canvas.removeEventListener("click", () => {});
+        }
 
         // Принудительно очищаем canvas перед уничтожением
-        const ctx = chartInstanceRef.current.canvas.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, chartInstanceRef.current.canvas.width, chartInstanceRef.current.canvas.height);
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext("2d");
+          if (ctx) {
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
         }
 
         chartInstanceRef.current.destroy();
         chartInstanceRef.current = null;
 
-        setTimeout(() => {}, 0);
       } catch (error) {
         console.error("Ошибка при уничтожении графика:", error);
       }
@@ -34,7 +39,9 @@ export const useChartInstance = () => {
   // Сброс масштаба графика
   const resetZoom = useCallback(() => {
     if (chartInstanceRef.current) {
-      chartInstanceRef.current.resetZoom();
+      if (typeof chartInstanceRef.current.resetZoom === "function") {
+        chartInstanceRef.current.resetZoom();
+      }
     }
   }, []);
 
@@ -45,5 +52,5 @@ export const useChartInstance = () => {
     };
   }, [destroyChart]);
 
-  return { chartInstanceRef, destroyChart, resetZoom };
+  return { chartInstanceRef, canvasRef, destroyChart, resetZoom };
 };

@@ -1,4 +1,5 @@
 import { ChartDataType } from "@/app/types/chart";
+import { ChartData, ChartDataset, ChartType } from "chart.js";
 import { ReactNode } from "react";
 
 // Enum для типов графиков
@@ -75,3 +76,8 @@ export interface ChartJSComponentProps {
   customData?: ChartDataType | null; // Добавляем поддержку пользовательских данных
 };
 
+export type ChartDataPointType = number | null | { x: number; y: number } | [number, number];
+
+export type TypedChartData = ChartData<ChartType, ChartDataPointType[], unknown>;
+
+export type TypedChartDataset = ChartDataset<ChartType, ChartDataPointType[]>;
