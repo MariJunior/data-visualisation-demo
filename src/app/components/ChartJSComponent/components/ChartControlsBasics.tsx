@@ -1,5 +1,5 @@
 import { DotChartOutlined } from "@ant-design/icons";
-import { Card, ColorPicker, Input, Select, Slider, Space, Switch, Typography } from "antd";
+import { Card, ColorPicker, Input, Select, Slider, Space, Switch, Tooltip, Typography } from "antd";
 import { Color, EasingFunction } from "chart.js";
 import { FC } from "react";
 import { ChartTypeEnum, DatasetEnum, LegendPositionEnum } from "../types";
@@ -320,23 +320,19 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
       >
         <Space direction="vertical" style={{ width: "100%" }}>
           <div>
-            <Text>Animation Playing</Text>
-            <Select
-              style={{ width: "100%" }}
-              value={animationPlaying}
-              onChange={(value) => setAnimationPlaying(value)}
-            >
-              <Option key="disabled" value="disabled">Disabled</Option>
-              <Option key="once" value="once">Once</Option>
-              <Option key="loop" value="loop">Loop</Option>
-            </Select>
+            <Text>Loop Animation</Text>
+            <Switch
+              checked={animationPlaying === "loop"}
+              onChange={(checked) => setAnimationPlaying(checked ? "loop" : "once")}
+              style={{ marginLeft: 8 }}
+            />
           </div>
 
           <div>
             <Text>Animation Duration: {animationDuration}ms</Text>
             <Slider
               min={0}
-              max={2000}
+              max={5000}
               step={100}
               value={animationDuration}
               onChange={(value) => setAnimationDuration(value)}
@@ -380,9 +376,11 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
             />
           </div>
 
-          {(selectedChartType === ChartTypeEnum.LINE) && (
+          {(selectedChartType === ChartTypeEnum.LINE && animationPlaying !== "loop") && (
             <div>
-              <Text>Line Tension: {tension}</Text>
+              <Tooltip title="Controls the curve smoothness of the line. 0 = straight lines, 1 = maximum curve.">
+                <Text>Line Tension: {tension}</Text>
+              </Tooltip>
               <Slider
                 min={0}
                 max={1}
@@ -390,6 +388,13 @@ export const ChartControlsBasic: FC<ChartControlsBasicProps> = ({
                 value={tension}
                 onChange={(value) => setTension(value)}
               />
+            </div>
+          )}
+          {(selectedChartType === ChartTypeEnum.LINE && animationPlaying === "loop") && (
+            <div>
+              <Tooltip title="Tension is being automatically animated">
+                <Text>Line Tension: <span style={{ color: '#1677ff' }}>Animating...</span></Text>
+              </Tooltip>
             </div>
           )}
         </Space>

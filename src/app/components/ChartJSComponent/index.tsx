@@ -8,6 +8,7 @@ import {
   BarElement,
   BubbleController,
   CategoryScale,
+  Chart,
   ChartDataset,
   Chart as ChartJS,
   ChartOptions,
@@ -19,6 +20,8 @@ import {
   LineController,
   LineElement,
   PieController,
+  Plugin,
+  Point,
   PointElement,
   PolarAreaController,
   RadarController,
@@ -29,8 +32,8 @@ import {
   Title,
   Tooltip
 } from "chart.js";
-import Zoom from 'chartjs-plugin-zoom';
-import { FC, useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import Zoom from "chartjs-plugin-zoom";
+import { FC, useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { chartReducer, initialChartState } from "./chartReducer";
 import ChartControls from "./components/ChartControls";
 import { colorSchemes, easingOptions } from "./constants";
@@ -71,6 +74,36 @@ ChartJS.register(
   Zoom
 );
 
+// Расширенный тип для Chart, включающий внутренние свойства
+interface ExtendedChart extends Chart {
+  _metasets?: Array<{
+    _parsed?: Array<number | Point | null>;
+    [key: string]: unknown;
+  }>;
+}
+
+// Типы для элементов бара
+interface BarElement {
+  base?: number;
+  y?: number;
+  x?: number;
+  width?: number;
+  height?: number;
+  _datasetIndex?: number;
+  _index?: number;
+  [key: string]: unknown;
+}
+
+interface ChartMeta {
+  data: Array<{
+    base?: number;
+    y?: number;
+    x?: number;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
+
 export const getCompatibleChartTypes = (datasetType: DatasetEnum): ChartTypeEnum[] => {
   switch (datasetType) {
     case DatasetEnum.SALES:
@@ -97,13 +130,12 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
   fontFamily = "Arial",
   customData = null,
 }) => {
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isResizingRef = useRef(false);
   const [zoomSettings, setZoomSettings] = useState({
     enableZoom: true,
-    zoomMode: 'xy' as 'xy' | 'x' | 'y',
+    zoomMode: "xy" as "xy" | "x" | "y",
     enablePan: true,
     zoomSpeed: 0.5
   });
@@ -130,9 +162,23 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     const verticalPadding = 30;   // Total top+bottom padding
     
     // Calculate target dimensions
-    const targetWidth = containerWidth - horizontalPadding;
-    const targetHeight = containerHeight - verticalPadding;
+    let targetWidth = containerWidth - horizontalPadding;
+    let targetHeight = containerHeight - verticalPadding;
     
+    // Apply aspect ratio if needed
+    if (state.appearance.aspectRatio > 0) {
+      // Calculate height based on width and aspect ratio
+      const heightFromWidth = targetWidth / state.appearance.aspectRatio;
+      
+      // If calculated height fits in container, use it
+      if (heightFromWidth <= targetHeight) {
+        targetHeight = heightFromWidth;
+      } else {
+        // Otherwise, calculate width based on height
+        targetWidth = targetHeight * state.appearance.aspectRatio;
+      }
+    }
+
     if (targetWidth <= 0 || targetHeight <= 0) {
       isResizingRef.current = false;
       return;
@@ -154,7 +200,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     setTimeout(() => {
       isResizingRef.current = false;
     }, 100);
-  }, []);
+  }, [state.appearance.aspectRatio]);
   
   // Improved fullscreen handling with event listener
   useEffect(() => {
@@ -169,10 +215,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     };
 
     // Add event listener for fullscreen changes
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [resizeChartToContainer]);
 
@@ -244,7 +290,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         responsive: true,
         aspectRatio: state.appearance.aspectRatio,
         animation: {
-          duration: state.animation.animationDuration,
+          duration: state.animation.animationPlaying === "loop" ? 100 : state.animation.animationDuration,
           delay: state.animation.animationDelay,
           easing: state.animation.animationType,
         },
@@ -361,7 +407,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             r: {
               beginAtZero: true,
               ticks: {
-                backdropColor: 'transparent',
+                backdropColor: "transparent",
                 font: {
                   family: fontFamily,
                   size: fontSize,
@@ -381,7 +427,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
 
       dispatch({ type: ChartActionTypes.UPDATE_CHART_OPTIONS, payload: newOptions });
     }, 
-    [fontFamily, fontSize, state.appearance.aspectRatio, state.appearance.tension, state.appearance.borderWidth, state.appearance.legendColor, state.appearance.showLegend, state.appearance.legendPosition, state.animation.animationDuration, state.animation.animationDelay, state.animation.animationType, state.titleConfig.subtitleColor, state.titleConfig.titleColor, state.titleConfig.showTitle, state.titleConfig.chartTitle, state.titleConfig.showSubtitle, state.titleConfig.subtitle, state.dataConfig.selectedChartType, zoomSettings.enablePan, zoomSettings.enableZoom, zoomSettings.zoomMode, zoomSettings.zoomSpeed, isDarkMode]
+    [fontFamily, fontSize, state.appearance.aspectRatio, state.appearance.tension, state.appearance.borderWidth, state.appearance.legendColor, state.appearance.showLegend, state.appearance.legendPosition, state.animation.animationPlaying, state.animation.animationDuration, state.animation.animationDelay, state.animation.animationType, state.titleConfig.subtitleColor, state.titleConfig.titleColor, state.titleConfig.showTitle, state.titleConfig.chartTitle, state.titleConfig.showSubtitle, state.titleConfig.subtitle, state.dataConfig.selectedChartType, zoomSettings.enablePan, zoomSettings.enableZoom, zoomSettings.zoomMode, zoomSettings.zoomSpeed, isDarkMode]
   );
 
   useEffect(
@@ -396,10 +442,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       try {
         chartInstanceRef.current.stop();
 
-        chartInstanceRef.current.canvas.removeEventListener('click', () => {});
+        chartInstanceRef.current.canvas.removeEventListener("click", () => {});
 
         // Принудительно очищаем canvas перед уничтожением
-        const ctx = chartRef.current?.getContext('2d');
+        const ctx = chartRef.current?.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, chartRef.current?.width || 0, chartRef.current?.height || 0);
         }
@@ -431,7 +477,10 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     // Настраиваем цвета в зависимости от темы
     const gridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
 
-    let currentData: ChartDataType;
+    let currentData: ChartDataType = {
+      labels: [],
+      datasets: []
+    };
     let chartType = state.dataConfig.selectedChartType;
     console.log("Current chart type:", chartType); // Для отладки
     
@@ -441,7 +490,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
         labels: Array.isArray(customData.labels) ? [...customData.labels] : [],
         datasets: Array.isArray(customData.datasets) 
           ? customData.datasets.map(dataset => ({
-              label: dataset.label || '',
+              label: dataset.label || "",
               data: Array.isArray(dataset.data) ? [...dataset.data] : []
             }))
           : []
@@ -569,7 +618,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           r: {
             beginAtZero: true,
             ticks: {
-              backdropColor: 'transparent',
+              backdropColor: "transparent",
               font: {
                 family: fontFamily,
                 size: fontSize,
@@ -680,17 +729,6 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
       options: options
     });
 
-    // После создания chartInstanceRef.current:
-    if (chartInstanceRef.current) {
-      console.log("Chart created with type:", chartType);
-      
-      // Отладка данных для радарного графика
-      if (chartType === ChartTypeEnum.RADAR) {
-        console.log("Radar datasets:", chartInstanceRef.current.data.datasets);
-        console.log("Radar options:", chartInstanceRef.current.options);
-      }
-    }
-
     // После создания графика применяем стили в зависимости от типа
     if (chartInstanceRef.current) {
       const schemeColors = colorSchemes.find(scheme => scheme.id === state.appearance.colorScheme)?.colors || colorSchemes[0].colors;
@@ -714,15 +752,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             backgroundColor: schemeColors
           });
         } else if (chartType === ChartTypeEnum.RADAR) {
-          // Удаляем все свойства, которые могут мешать
-          // Object.keys(dataset).forEach(key => {
-          //   if (key !== 'label' && key !== 'data') {
-          //     delete (dataset as ChartDataset<'radar', number[]> & { [key: string]: unknown })[key];
-          //   }
-          // });
-
           // Для радарных графиков каждый датасет должен иметь ОДИН цвет
-          const radarDataset = dataset as ChartDataset<'radar', number[]> & RadarControllerDatasetOptions;
+          const radarDataset = dataset as ChartDataset<"radar", number[]> & RadarControllerDatasetOptions;
 
           Object.assign(radarDataset, {
             type: "radar",
@@ -733,8 +764,8 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
             borderWidth: state.appearance.borderWidth,
             // Настройки точек
             pointBackgroundColor: color,
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
             pointHoverBorderColor: color,
             pointRadius: 4,
             pointHoverRadius: 5,
@@ -757,10 +788,155 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
           });
         }
       });
+
+      // Сначала удалим все предыдущие плагины анимации
+      const rotateAnimationPlugin = ChartJS.registry.plugins.get('rotateAnimation');
+      if (rotateAnimationPlugin) {
+        ChartJS.unregister(rotateAnimationPlugin);
+      }
       
-      chartInstanceRef.current.update("none");
+      const scalePlugin = ChartJS.registry.plugins.get('scalePlugin');
+      if (scalePlugin) {
+        ChartJS.unregister(scalePlugin);
+      }
+      
+      // Сбрасываем анимации
+      chartInstanceRef.current.options.animations = {};
+
+      // Настраиваем анимацию в соответствии с выбранными параметрами
+      if (state.animation.animationPlaying === "loop") {
+        // Для линейных графиков - анимируем tension
+        if (chartType === ChartTypeEnum.LINE) {
+          // Настраиваем анимацию tension согласно документации
+          chartInstanceRef.current.options.animations = {
+            tension: {
+              duration: state.animation.animationDuration,
+              easing: state.animation.animationType,
+              from: 0,
+              to: 1,
+              loop: true
+            }
+          };
+
+          // Обновляем все датасеты, чтобы применить tension
+          chartInstanceRef.current.data.datasets.forEach(dataset => {
+            if ('tension' in dataset) {
+              dataset.tension = 0; // Начальное значение
+            }
+          });
+        }
+        // Для круговых диаграмм - анимируем вращение
+        else if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT) {
+          // Добавляем плагин для вращения
+          const rotatePlugin = {
+            id: 'rotateAnimation',
+            beforeDraw(chart: Chart) {
+              const ctx = chart.ctx;
+              const centerX = chart.chartArea.left + chart.chartArea.width / 2;
+              const centerY = chart.chartArea.top + chart.chartArea.height / 2;
+              
+              ctx.save();
+              ctx.translate(centerX, centerY);
+              ctx.rotate((Date.now() / 3000) % (Math.PI * 2));
+              ctx.translate(-centerX, -centerY);
+            },
+            afterDraw(chart: Chart) {
+              chart.ctx.restore();
+            }
+          };
+          
+          // Регистрируем плагин
+          ChartJS.register(rotatePlugin);
+        }
+        // Для столбчатых диаграмм - анимируем высоту
+        else if (chartType === ChartTypeEnum.BAR) {
+          // Используем анимацию для столбцов
+          const barAnimationPlugin: Plugin<'bar'> = {
+            id: 'barAnimation',
+            beforeDraw(chart: Chart) {
+              if (state.animation.animationPlaying !== "loop") return;
+              
+              const meta = chart.getDatasetMeta(0);
+              const factor = Math.abs(Math.sin(Date.now() / 1000) * 0.2 + 0.8); // 0.8-1.0 range
+              
+              meta.data.forEach((element) => {
+                // First cast to unknown, then to our desired type
+                const bar = element as unknown as {
+                  base?: number;
+                  y?: number;
+                  x?: number;
+                  [key: string]: unknown;
+                };
+                
+                if (bar && typeof bar.base === 'number' && typeof bar.y === 'number') {
+                  const height = bar.base - bar.y;
+                  bar.y = bar.base - (height * factor);
+                }
+              });
+            }
+          };
+          
+          // Регистрируем плагин
+          ChartJS.register(barAnimationPlugin);
+        }
+        // Для радарных диаграмм - анимируем масштаб
+        else if (chartType === ChartTypeEnum.RADAR) {
+          // Для радарных диаграмм используем плагин для анимации масштаба
+          const scalePlugin: Plugin<'radar'> = {
+            id: 'scalePlugin',
+            beforeDraw(chart: Chart) {
+              const scale = 0.8 + Math.abs(Math.sin(Date.now() / 1000) * 0.2);
+              const ctx = chart.ctx;
+              ctx.save();
+              // Масштабируем только данные, не сетку
+              const centerX = chart.chartArea.left + chart.chartArea.width / 2;
+              const centerY = chart.chartArea.top + chart.chartArea.height / 2;
+              
+              ctx.translate(centerX, centerY);
+              ctx.scale(scale, scale);
+              ctx.translate(-centerX, -centerY);
+            },
+            afterDraw(chart: Chart) {
+              chart.ctx.restore();
+            }
+          };
+          
+          // Регистрируем плагин
+          ChartJS.register(scalePlugin);
+        }
+        
+        // Запускаем анимацию
+        chartInstanceRef.current.update();
+        
+        // Настраиваем интервал для обновления анимации для плагинов
+        if (chartType === ChartTypeEnum.PIE || chartType === ChartTypeEnum.DOUGHNUT || 
+            chartType === ChartTypeEnum.RADAR || chartType === ChartTypeEnum.BAR) {
+          const animationInterval = setInterval(() => {
+            if (chartInstanceRef.current && state.animation.animationPlaying === "loop") {
+              chartInstanceRef.current.update();
+            } else {
+              clearInterval(animationInterval);
+            }
+          }, 50); // Обновляем каждые 50мс для плавности
+          
+          // Очистка при размонтировании
+          return () => {
+            clearInterval(animationInterval);
+
+            // Отменяем регистрацию плагинов
+            ['rotateAnimation', 'scalePlugin', 'barAnimation', 'lineAnimation'].forEach(pluginId => {
+              const plugin = ChartJS.registry.plugins.get(pluginId);
+              if (plugin) {
+                ChartJS.unregister(plugin);
+              }
+            });
+          };
+        }
+      }
+
+      chartInstanceRef.current.update();
     }
-  }, [destroyChart, isDarkMode, state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, state.chartOptions, state.appearance.legendColor, state.appearance.colorScheme, state.appearance.borderWidth, state.titleConfig.titleColor, state.titleConfig.subtitleColor, customData, fontFamily, fontSize]);
+  }, [destroyChart, isDarkMode, state.dataConfig.selectedChartType, state.dataConfig.selectedDataset, state.chartOptions, state.appearance.legendColor, state.appearance.borderWidth, state.appearance.colorScheme, state.titleConfig.titleColor, state.titleConfig.subtitleColor, state.animation.animationPlaying, state.animation.animationDuration, state.animation.animationType, customData, fontFamily, fontSize]);
 
   // Также, важно обновлять график при изменении типа графика
   useEffect(() => {
@@ -804,7 +980,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     }
   }, [destroyChart, fontFamily, fontSize, renderChart]);
   
-  // Resize the chart when it's initially rendered and when chart type changes
+  // Resize the chart when it"s initially rendered and when chart type changes
   useLayoutEffect(() => {
     const timer = setTimeout(() => {
       resizeChartToContainer();
@@ -812,6 +988,37 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
     
     return () => clearTimeout(timer);
   }, [state.dataConfig.selectedChartType, renderChart, resizeChartToContainer]);
+
+  // Добавим эффект для отслеживания изменений режима анимации
+  useEffect(() => {
+    // Если график существует и режим анимации изменился
+    if (chartInstanceRef.current) {
+      // Удаляем все плагины анимации
+      const rotateAnimationPlugin = ChartJS.registry.plugins.get('rotateAnimation');
+      if (rotateAnimationPlugin) {
+        ChartJS.unregister(rotateAnimationPlugin);
+      }
+      
+      const scalePlugin = ChartJS.registry.plugins.get('scalePlugin');
+      if (scalePlugin) {
+        ChartJS.unregister(scalePlugin);
+      }
+      
+      const barAnimationPlugin = ChartJS.registry.plugins.get('barAnimation');
+      if (barAnimationPlugin) {
+        ChartJS.unregister(barAnimationPlugin);
+      }
+      
+      // Сбрасываем анимации
+      if (chartInstanceRef.current.options.animations) {
+        chartInstanceRef.current.options.animations = {};
+      }
+      
+      // Пересоздаем график при изменении режима анимации
+      destroyChart();
+      renderChart();
+    }
+  }, [state.animation.animationPlaying, destroyChart, renderChart]);
 
   // Функция для получения иконки в зависимости от типа графика
   const getChartIcon = (chartType: ChartTypeEnum) => {
@@ -914,7 +1121,7 @@ export const ChartJSComponent: FC<ChartJSComponentProps> = ({
                   />
                 </AntdTooltip>
               </div>
-              <canvas ref={chartRef} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+              <canvas ref={chartRef} style={{ maxWidth: "100%", maxHeight: "100%" }} />
             </div>
           </Col>
       
