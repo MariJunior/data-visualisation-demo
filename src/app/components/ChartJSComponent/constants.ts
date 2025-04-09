@@ -8,7 +8,7 @@ export const colorSchemes = [
   { id: "monochrome", name: "Monochrome", colors: ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"] },
   { id: "earth", name: "Earth Tones", colors: ["#5d4037", "#795548", "#8d6e63", "#a1887f", "#bcaaa4", "#d7ccc8"] },
 ];
-
+ 
 export const easingOptions: EasingFunction[] = [
   "linear", "easeInQuad", "easeOutQuad", "easeInOutQuad",
   "easeInCubic", "easeOutCubic", "easeInOutCubic",

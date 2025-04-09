@@ -48,7 +48,7 @@ export interface ChartState {
 export type ChartAction =
   | { type: ChartActionTypes.SET_DATASET; payload: DatasetEnum }
   | { type: ChartActionTypes.SET_CHART_TYPE; payload: ChartTypeEnum }
-  | { type: ChartActionTypes.SET_COMPATIBLE_TYPES; payload: ChartTypeEnum[] }
+  | { type: ChartActionTypes.SET_COMPATIBLE_TYPES; payload: ChartTypeEnum[] } 
   | { type: ChartActionTypes.SET_COLOR_SCHEME; payload: string }
   | { type: ChartActionTypes.TOGGLE_LEGEND; payload: boolean }
   | { type: ChartActionTypes.SET_LEGEND_POSITION; payload: LegendPositionEnum }
