@@ -1,4 +1,4 @@
-# 📊 Документация проекта Data Visualization Demo
+# 📊 Data Visualization Demo
 
 ## 🌟 Введение
 
